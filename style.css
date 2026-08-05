@@ -1580,3 +1580,348 @@ body::before {
 
   .title-controls { position: static; margin-top: 8px; }
 }
+
+/* OVERRIDES for Animations, Empty State, and Map Height */
+/* ==========================================================================
+   BOOK EDITOR & STORAGE UI
+   ========================================================================== */
+
+/* Editor Workspace */
+.book-workspace {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(100vh - 100px); /* Fill remaining space below header */
+  padding: 20px;
+  gap: 20px;
+  position: relative;
+}
+
+.book-nav-btn {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  color: #333;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  transition: all 0.2s;
+  z-index: 10;
+}
+.book-nav-btn:hover:not(:disabled) {
+  background: white;
+  transform: scale(1.1);
+}
+.book-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* The Book Spread */
+.book-spread {
+  display: flex;
+  height: 100%;
+  max-height: 85vh;
+  aspect-ratio: 2 / 1.414; /* Two A4 pages side by side */
+  background: rgba(255,255,255,0.03);
+  border-radius: 12px;
+  position: relative;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+  perspective: 2000px;
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+}
+.book-spread.turning-next {
+  transform: translateX(-50px) rotateY(-10deg);
+  opacity: 0;
+}
+.book-spread.turning-prev {
+  transform: translateX(50px) rotateY(10deg);
+  opacity: 0;
+}
+.book-spread.turning-next-enter {
+  transform: translateX(50px) rotateY(10deg);
+  opacity: 0;
+  transition: none;
+}
+.book-spread.turning-prev-enter {
+  transform: translateX(-50px) rotateY(-10deg);
+  opacity: 0;
+  transition: none;
+}
+
+.book-spread.rings-open {
+  transform: scale(0.98);
+}
+.book-spread.rings-open .book-page#page-left { transform: rotateY(5deg); }
+.book-spread.rings-open .book-page#page-right { transform: rotateY(-5deg); }
+
+.book-page {
+  flex: 1;
+  height: 100%;
+  background: #fdfbf7; /* Paper color */
+  color: #333;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.5s ease;
+  transform-origin: center right;
+  z-index: 1;
+}
+.book-page#page-right { transform-origin: center left; }
+
+.book-page#page-left { border-radius: 12px 0 0 12px; box-shadow: inset -10px 0 20px rgba(0,0,0,0.05); }
+.book-page#page-right { border-radius: 0 12px 12px 0; box-shadow: inset 10px 0 20px rgba(0,0,0,0.05); }
+
+.book-spine {
+  width: 30px;
+  background: linear-gradient(to right, #e0dcd3, #f5f3ec 20%, #e0dcd3 50%, #f5f3ec 80%, #e0dcd3);
+  z-index: 10;
+  position: relative;
+  cursor: pointer;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+}
+.binder-rings {
+  position: absolute;
+  top: 10%;
+  bottom: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  z-index: 20;
+}
+.ring {
+  width: 40px;
+  height: 8px;
+  background: linear-gradient(to bottom, #d4d4d4, #f5f5f5, #a3a3a3);
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  margin-left: -5px;
+  transition: width 0.5s ease, margin-left 0.5s ease;
+}
+.book-spread.rings-open .ring { width: 50px; margin-left: -10px; }
+
+/* Page States */
+.page-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 15px;
+}
+.btn-create-new, .btn-import {
+  background: var(--accent-1);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(139,92,246,0.3);
+  transition: all 0.2s;
+}
+.btn-import { background: rgba(0,0,0,0.1); color: #333; box-shadow: none; }
+.btn-create-new:hover, .btn-import:hover { transform: translateY(-2px); }
+.btn-create-new.huge {
+  font-size: 4rem; width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: transparent; color: rgba(0,0,0,0.2); border: 2px dashed rgba(0,0,0,0.2); box-shadow: none; transition: all 0.2s;
+}
+.btn-create-new.huge:hover {
+  background: rgba(0,0,0,0.05); color: rgba(0,0,0,0.4); border-color: rgba(0,0,0,0.4); transform: scale(1.05);
+}
+
+.page-active-state {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 20px;
+}
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  border-bottom: 2px solid rgba(0,0,0,0.1);
+  padding-bottom: 10px;
+}
+.page-title-input {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  font-family: inherit;
+  font-weight: bold;
+  color: #333;
+  width: 60%;
+}
+.page-title-input:focus { outline: none; border-bottom: 2px solid rgba(139,92,246,0.5); }
+.btn-archive {
+  background: rgba(0,0,0,0.05);
+  border: 1px solid rgba(0,0,0,0.1);
+  padding: 5px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-archive:hover { background: rgba(0,0,0,0.1); }
+
+.page-map-preview {
+  height: 250px;
+  background: rgba(0,0,0,0.05);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 15px;
+  color: rgba(0,0,0,0.3);
+  font-weight: bold;
+}
+
+.page-grid-container {
+  flex: 1;
+  position: relative;
+  background: rgba(255,255,255,0.4);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.05);
+}
+.page-grid {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+.btn-add-widget-page {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--accent-1);
+  color: white;
+  font-size: 2rem;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(139,92,246,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+  z-index: 10;
+}
+.btn-add-widget-page:hover { transform: scale(1.1); }
+
+/* Storage Box & Page Overview (Modal) */
+.page-overview-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.8);
+  backdrop-filter: blur(10px);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+}
+.page-overview-overlay.hidden { display: none; }
+.overview-header {
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+}
+.btn-close-overview {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.btn-close-overview:hover { background: rgba(255,255,255,0.3); }
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+  padding: 20px;
+  flex: 1;
+  overflow-y: auto;
+}
+.overview-page-thumb {
+  aspect-ratio: 1 / 1.414;
+  background: white;
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #333;
+  font-weight: bold;
+  cursor: move;
+  position: relative;
+}
+.overview-page-thumb:hover { transform: scale(1.02); }
+.overview-page-thumb.drag-over { border: 2px dashed var(--accent-1); }
+
+.storage-box-container {
+  padding: 15px;
+  flex: 1;
+  overflow-y: auto;
+}
+.stored-page-item {
+  background: rgba(0,0,0,0.05);
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.btn-import-page {
+  background: var(--accent-1);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+/* Folder Breadcrumbs */
+.folder-breadcrumbs {
+  padding: 10px 20px;
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  color: rgba(255,255,255,0.7);
+}
+.breadcrumb-item {
+  cursor: pointer;
+}
+.breadcrumb-item:hover { color: white; text-decoration: underline; }
+.breadcrumb-separator {
+  margin: 0 5px;
+}
+
+.resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 25px;
+  height: 25px;
+  cursor: se-resize;
+  background: linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.7) 50%);
+  border-bottom-right-radius: 8px;
+  z-index: 10;
+}
+.resize-handle:hover {
+  background: linear-gradient(135deg, transparent 50%, rgba(139,92,246,0.8) 50%);
+}

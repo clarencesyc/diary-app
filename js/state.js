@@ -2,17 +2,48 @@
    MEMENTO DIARY — Global State & Persistence
    ═══════════════════════════════════════════════════════════ */
 
+// --- Data Migration for backward compatibility ---
+function migrateEntries(entries) {
+  if (!Array.isArray(entries)) return [];
+  entries.forEach(entry => {
+    // Migrate to nested folders
+    if (entry.parentId === undefined) {
+      entry.parentId = null;
+    }
+    // Migrate diaries to Book/Page format
+    if (entry.type === 'diary' && entry.widgets && !entry.pages) {
+      entry.pages = [
+        {
+          id: 'page-' + Date.now() + Math.random().toString(36).slice(2, 6),
+          title: entry.title || 'Page 1',
+          mapLocation: null,
+          widgets: entry.widgets || []
+        }
+      ];
+      delete entry.widgets;
+    }
+  });
+  return entries;
+}
+
+const loadedEntries = migrateEntries(JSON.parse(localStorage.getItem('memento_entries') || '[]'));
+
 export const state = {
-  entries: JSON.parse(localStorage.getItem('memento_entries') || '[]'),
+  entries: loadedEntries,
+  storedPages: JSON.parse(localStorage.getItem('memento_stored_pages') || '[]'),
+  currentFolderId: null, // Tracks which folder we are currently viewing (null = root)
   currentDiary: null,
   calendarDate: new Date(),
   sortAsc: true,
 
-  // Editor grid state
+  // Editor Book/Page state
+  currentSpreadIndex: 0, // 0 means pages 1-2, 2 means pages 3-4, etc.
+  
+  // Editor grid state (applies to the currently active page being edited)
   gridCols: 10,
   gridRows: 8,
   occupiedCells: {}, // key: "row-col" → widgetId
-  widgets: [],       // placed widgets for current diary
+  widgets: [],       // placed widgets for current active page
   widgetIdCounter: 0,
 
   // Placement mode
@@ -41,4 +72,8 @@ export const state = {
 /* ── Persistence ────────────────────────────────────── */
 export function saveEntries() {
   localStorage.setItem('memento_entries', JSON.stringify(state.entries));
+}
+
+export function saveStoredPages() {
+  localStorage.setItem('memento_stored_pages', JSON.stringify(state.storedPages));
 }

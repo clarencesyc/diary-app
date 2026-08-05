@@ -152,7 +152,7 @@ export function createFile() {
       visibility,
       allowedUsers,
       createdAt: new Date().toISOString(),
-      diaries: [],
+      parentId: state.currentFolderId,
     };
     state.entries.push(entry);
     showToast(`File "${title}" created`);
@@ -188,7 +188,15 @@ export function createDiary() {
       color,
       visibility,
       createdAt: new Date().toISOString(),
-      widgets: [],
+      parentId: state.currentFolderId,
+      pages: [
+        {
+          id: 'page-' + Date.now() + Math.random().toString(36).slice(2, 6),
+          title: 'Page 1',
+          mapLocation: null,
+          widgets: []
+        }
+      ],
       titleFontSize: 28,
     };
     state.entries.push(entry);

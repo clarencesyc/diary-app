@@ -5,8 +5,10 @@
 import { state, saveEntries } from './state.js';
 import { dom } from './dom.js';
 import { escapeHTML, showToast } from './utils.js';
-import { openEditor } from './editor.js';
 import { openEditModal } from './modals.js';
+import { navigateToFolder } from './folderManager.js';
+import { initDragAndDrop } from './dndManager.js';
+import { openBookEditor } from './bookEditor.js';
 
 /* ── Context Menu State ──────────────────────────────── */
 let currentContextMenuEntry = null;
@@ -31,6 +33,14 @@ export function initContextMenu() {
   });
 
   document.addEventListener('scroll', closeContextMenu, { passive: true });
+  
+  // Custom event fired by dndManager when long press completes without moving
+  document.addEventListener('open-context-menu', (e) => {
+    const entry = state.entries.find(ent => ent.id === e.detail.entryId);
+    if (entry) {
+      openContextMenu(entry, e.detail.x, e.detail.y);
+    }
+  });
 }
 
 function openContextMenu(entry, x, y) {
@@ -68,15 +78,18 @@ export function renderEntries() {
   const grid = dom.entriesGrid;
   grid.innerHTML = '';
 
-  if (state.entries.length === 0) {
+  // Filter by current folder
+  const currentFolderEntries = state.entries.filter(e => e.parentId === state.currentFolderId);
+
+  if (currentFolderEntries.length === 0) {
     grid.appendChild(createEmptyState());
     dom.entryCount.textContent = '0 entries';
     return;
   }
 
-  dom.entryCount.textContent = `${state.entries.length} ${state.entries.length === 1 ? 'entry' : 'entries'}`;
+  dom.entryCount.textContent = `${currentFolderEntries.length} ${currentFolderEntries.length === 1 ? 'entry' : 'entries'}`;
 
-  const sorted = [...state.entries].sort((a, b) => {
+  const sorted = [...currentFolderEntries].sort((a, b) => {
     const dateA = new Date(a.createdAt).getTime();
     const dateB = new Date(b.createdAt).getTime();
     return state.sortAsc ? dateA - dateB : dateB - dateA;
@@ -133,38 +146,21 @@ function createEntryIcon(entry) {
     <div class="entry-name">${escapeHTML(entry.title)}</div>
   `;
 
-  // Long press / right-click logic
-  let pressTimer;
-  const cancelPress = () => clearTimeout(pressTimer);
-  
-  icon.addEventListener('touchstart', (e) => {
-    pressTimer = setTimeout(() => {
-      openContextMenu(entry, e.touches[0].clientX, e.touches[0].clientY);
-    }, 600);
-  });
-  icon.addEventListener('touchend', cancelPress);
-  icon.addEventListener('touchmove', cancelPress);
-  
-  icon.addEventListener('mousedown', (e) => {
-    if (e.button !== 0) return; // Only left click for long press
-    pressTimer = setTimeout(() => {
-      openContextMenu(entry, e.clientX, e.clientY);
-    }, 600);
-  });
-  icon.addEventListener('mouseup', cancelPress);
-  icon.addEventListener('mouseleave', cancelPress);
-  
-  icon.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
-    openContextMenu(entry, e.clientX, e.clientY);
-  });
+  // Long press & Drag and Drop via dndManager
+  initDragAndDrop(icon, entry);
 
-  if (entry.type === 'diary') {
-    icon.addEventListener('click', () => {
-      if (!dom.ctxMenu.classList.contains('hidden')) return; // Don't open if menu just popped up
-      openEditor(entry);
-    });
-  }
+  // Click to open File/Diary
+  icon.addEventListener('click', () => {
+    if (!dom.ctxMenu.classList.contains('hidden')) return; // Don't open if menu just popped up
+    // Also check if we just finished dragging (handled by dndManager usually blocking clicks, but just in case)
+    if (icon.classList.contains('is-dragging-source')) return;
+
+    if (entry.type === 'file') {
+      navigateToFolder(entry.id);
+    } else if (entry.type === 'diary') {
+      openBookEditor(entry);
+    }
+  });
 
   return icon;
 }

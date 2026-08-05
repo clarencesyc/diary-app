@@ -62,6 +62,12 @@ export const dom = {
   editorMap: $('#editor-map'),
   legoGridContainer: $('#lego-grid-container'),
   legoGrid: $('#lego-grid'),
+  
+  // Book Overview
+  pageOverviewOverlay: $('#page-overview-overlay'),
+  closeOverviewBtn: $('#close-overview'),
+  overviewGrid: $('#overview-grid'),
+  bookSpine: $('#book-spine'),
 
   // Placement
   placementOverlay: $('#placement-overlay'),

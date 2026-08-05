@@ -2,7 +2,7 @@
    MEMENTO DIARY — Widget Placement, Rendering & Removal
    ═══════════════════════════════════════════════════════════ */
 
-import { state } from './state.js';
+import { state, saveEntries } from './state.js';
 import { dom } from './dom.js';
 import { showToast } from './utils.js';
 import { checkPlacement, markCellsOccupied, freeCells, clearCellHighlights, buildLegoGrid } from './grid.js';
@@ -18,8 +18,6 @@ export function placeWidget(row, col, wCols, wRows, imageData) {
     type = state.movingWidget.type;
   }
 
-  markCellsOccupied(row, col, wCols, wRows, widgetId);
-
   const widgetData = {
     id: widgetId,
     type,
@@ -29,35 +27,53 @@ export function placeWidget(row, col, wCols, wRows, imageData) {
     rows: wRows,
     imageData,
   };
+
+  markCellsOccupied(row, col, wCols, wRows, widgetId);
   state.widgets.push(widgetData);
 
   renderPlacedWidget(widgetData);
+
+  if (!state.movingWidget) {
+    showToast('Widget placed');
+  } else {
+    state.movingWidget = null;
+    showToast('Widget moved');
+  }
+
+  exitPlacementMode();
+  saveEntries();
 }
 
 
-/* ── Render Widget ───────────────────────────────────── */
+/* ── Render Placed Widget ────────────────────────────── */
 export function renderPlacedWidget(w) {
   const grid = dom.legoGrid;
-  const cellSize = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--grid-cell'));
-  const gap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--grid-gap'));
+  const rootStyle = getComputedStyle(document.documentElement);
+  const cellSize = parseInt(rootStyle.getPropertyValue('--grid-cell')) || 60;
+  const gap = parseInt(rootStyle.getPropertyValue('--grid-gap')) || 4;
 
   const el = document.createElement('div');
   el.className = 'placed-widget';
   el.dataset.widgetId = w.id;
 
-  const left = w.col * (cellSize + gap);
-  const top = w.row * (cellSize + gap);
-  const width = w.cols * cellSize + (w.cols - 1) * gap;
-  const height = w.rows * cellSize + (w.rows - 1) * gap;
+  const updateVisualSize = () => {
+    const left = w.col * cellSize + w.col * gap;
+    const top = w.row * cellSize + w.row * gap;
+    const width = w.cols * cellSize + (w.cols - 1) * gap;
+    const height = w.rows * cellSize + (w.rows - 1) * gap;
 
-  el.style.left = left + 'px';
-  el.style.top = top + 'px';
-  el.style.width = width + 'px';
-  el.style.height = height + 'px';
+    el.style.left = left + 'px';
+    el.style.top = top + 'px';
+    el.style.width = width + 'px';
+    el.style.height = height + 'px';
+  };
+  
+  updateVisualSize();
 
   el.innerHTML = `
-    <img src="${w.imageData}" alt="Widget" />
+    <img src="${w.imageData}" alt="Widget" style="width: 100%; height: 100%; object-fit: cover;" />
     <button class="widget-delete" title="Remove widget">✕</button>
+    <div class="resize-handle" title="Drag to resize"></div>
   `;
 
   el.querySelector('.widget-delete').addEventListener('click', (e) => {
@@ -70,17 +86,77 @@ export function renderPlacedWidget(w) {
   const cancelPress = () => clearTimeout(pressTimer);
   
   el.addEventListener('touchstart', (e) => {
+    if (e.target.classList.contains('resize-handle')) return;
     pressTimer = setTimeout(() => pickupWidget(w), 500);
   });
   el.addEventListener('touchend', cancelPress);
   el.addEventListener('touchmove', cancelPress);
 
   el.addEventListener('mousedown', (e) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || e.target.classList.contains('resize-handle')) return;
     pressTimer = setTimeout(() => pickupWidget(w), 500);
   });
   el.addEventListener('mouseup', cancelPress);
   el.addEventListener('mouseleave', cancelPress);
+  
+  // Resize logic
+  const handle = el.querySelector('.resize-handle');
+  
+  const startResize = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    // Support both touch and mouse
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    
+    const startX = clientX;
+    const startY = clientY;
+    const startCols = w.cols;
+    const startRows = w.rows;
+    const totalCellSize = cellSize + gap;
+    
+    freeCells(w.id);
+    
+    const doResize = (moveEvent) => {
+      moveEvent.preventDefault();
+      const currentX = moveEvent.touches ? moveEvent.touches[0].clientX : moveEvent.clientX;
+      const currentY = moveEvent.touches ? moveEvent.touches[0].clientY : moveEvent.clientY;
+      
+      const dx = currentX - startX;
+      const dy = currentY - startY;
+      
+      let newCols = Math.max(1, startCols + Math.round(dx / totalCellSize));
+      let newRows = Math.max(1, startRows + Math.round(dy / totalCellSize));
+      
+      newCols = Math.min(newCols, state.gridCols - w.col);
+      newRows = Math.min(newRows, state.gridRows - w.row);
+      
+      if (checkPlacement(w.row, w.col, newCols, newRows)) {
+         w.cols = newCols;
+         w.rows = newRows;
+         updateVisualSize();
+      }
+    };
+    
+    const endResize = () => {
+      document.removeEventListener('mousemove', doResize);
+      document.removeEventListener('mouseup', endResize);
+      document.removeEventListener('touchmove', doResize);
+      document.removeEventListener('touchend', endResize);
+      
+      markCellsOccupied(w.row, w.col, w.cols, w.rows, w.id);
+      saveEntries();
+    };
+    
+    document.addEventListener('mousemove', doResize);
+    document.addEventListener('mouseup', endResize);
+    document.addEventListener('touchmove', doResize, { passive: false });
+    document.addEventListener('touchend', endResize);
+  };
+  
+  handle.addEventListener('mousedown', startResize);
+  handle.addEventListener('touchstart', startResize, { passive: false });
 
   // Entrance animation
   el.style.opacity = '0';
@@ -90,6 +166,8 @@ export function renderPlacedWidget(w) {
     el.style.transition = 'opacity 0.2s, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
     el.style.opacity = '1';
     el.style.transform = 'scale(1)';
+    // Remove transition after animation to prevent lag during resize
+    setTimeout(() => { el.style.transition = ''; }, 200);
   });
 }
 

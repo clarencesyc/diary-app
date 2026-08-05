@@ -39,6 +39,7 @@
     <!-- MIDDLE BAR (10%) -->
     <nav class="main-mid" id="main-mid">
       <div class="mid-left">
+        <div id="folder-breadcrumbs" class="folder-breadcrumbs"></div>
         <span class="entry-count" id="entry-count">0 entries</span>
       </div>
       <div class="mid-right">
@@ -86,16 +87,11 @@
           <div class="cal-weekdays" id="cal-weekdays"></div>
           <div class="cal-days" id="cal-days"></div>
         </div>
-        <!-- Map Widget -->
-        <div class="sidebar-widget map-widget glass-panel" id="map-widget">
-          <div class="widget-header"><span>Location</span></div>
-          <div class="map-placeholder">
-            <svg viewBox="0 0 80 80" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.5">
-              <circle cx="40" cy="30" r="10"/>
-              <path d="M40 40l-15 25h30z"/>
-              <circle cx="40" cy="30" r="3" fill="currentColor"/>
-            </svg>
-            <span>Map view</span>
+        <!-- Storage Box Widget -->
+        <div class="sidebar-widget storage-widget glass-panel" id="storage-box-widget">
+          <div class="widget-header"><span>Storage Box (보관함)</span></div>
+          <div class="storage-box-list" id="storage-box-list">
+            <!-- Stored pages rendered here -->
           </div>
         </div>
       </aside>
@@ -225,8 +221,7 @@
   <!--  SCREEN 2 — EDITOR                             -->
   <!-- ═══════════════════════════════════════════════ -->
   <div id="editor-page" class="screen">
-
-    <!-- Editor Top Header (8%) -->
+    <!-- Editor Top Header -->
     <header class="editor-header" id="editor-header">
       <button class="btn-icon" id="editor-back" title="Back to main">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
@@ -234,7 +229,7 @@
         </svg>
       </button>
       <div class="editor-header-center">
-        <span class="editor-label" id="editor-label">Editing</span>
+        <span class="editor-label" id="editor-label">Diary</span>
       </div>
       <button class="btn-save" id="editor-save">
         <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path d="M3 3a2 2 0 012-2h8.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V17a2 2 0 01-2 2H5a2 2 0 01-2-2V3z"/><path d="M7 1v4a1 1 0 001 1h4a1 1 0 001-1V1" fill="rgba(255,255,255,0.3)"/><rect x="6" y="11" width="8" height="5" rx="1" fill="rgba(255,255,255,0.3)"/></svg>
@@ -242,50 +237,56 @@
       </button>
     </header>
 
-    <!-- Title Section (10%) -->
-    <div class="editor-title-section" id="editor-title-section">
-      <input type="text" class="editor-title-input" id="editor-title" placeholder="Untitled" />
-      <div class="title-underline"></div>
-      <div class="title-controls">
-        <button class="font-size-btn" id="font-dec" title="Decrease font size">A−</button>
-        <span class="font-size-display" id="font-size-display">28px</span>
-        <button class="font-size-btn" id="font-inc" title="Increase font size">A+</button>
+    <!-- Book Workspace -->
+    <div class="book-workspace">
+      <button class="book-nav-btn prev" id="book-prev">‹</button>
+      
+      <div class="book-spread" id="book-spread">
+        <!-- Left Page -->
+        <div class="book-page" id="page-left">
+          <!-- Dynamically populated by bookEditor.js -->
+        </div>
+
+        <!-- Center Spine / Rings -->
+        <div class="book-spine" id="book-spine">
+          <div class="binder-rings">
+            <div class="ring"></div>
+            <div class="ring"></div>
+            <div class="ring"></div>
+            <div class="ring"></div>
+            <div class="ring"></div>
+            <div class="ring"></div>
+          </div>
+        </div>
+
+        <!-- Right Page -->
+        <div class="book-page" id="page-right">
+          <!-- Dynamically populated by bookEditor.js -->
+        </div>
       </div>
+
+      <button class="book-nav-btn next" id="book-next">›</button>
     </div>
 
-    <!-- Workspace (82%) -->
-    <div class="editor-workspace" id="editor-workspace">
-      <!-- Map Widget (top-left) -->
-      <div class="editor-map-widget glass-panel" id="editor-map">
-        <div class="map-placeholder">
-          <svg viewBox="0 0 80 80" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.5">
-            <circle cx="40" cy="30" r="10"/>
-            <path d="M40 40l-15 25h30z"/>
-            <circle cx="40" cy="30" r="3" fill="currentColor"/>
-          </svg>
-          <span>Location</span>
+    <!-- Page Overview Overlay -->
+    <div class="page-overview-overlay hidden" id="page-overview-overlay">
+      <div class="page-overview-container glass-panel">
+        <div class="overview-header">
+          <h3>Diary Pages</h3>
+          <button class="btn-icon" id="close-overview">✕</button>
+        </div>
+        <div class="overview-grid" id="overview-grid">
+          <!-- Page thumbnails go here -->
         </div>
       </div>
-
-      <!-- LEGO Grid -->
-      <div class="lego-grid-container" id="lego-grid-container">
-        <div class="lego-grid" id="lego-grid">
-          <!-- Grid cells generated by JS -->
-        </div>
+    </div>
+    
+    <!-- Placement Overlay (appears during widget placement) -->
+    <div class="placement-overlay hidden" id="placement-overlay">
+      <div class="placement-banner">
+        <span>Click a grid area on an active page to place your widget</span>
+        <button class="btn-cancel-placement" id="cancel-placement">Cancel</button>
       </div>
-
-      <!-- Placement Overlay (appears during widget placement) -->
-      <div class="placement-overlay hidden" id="placement-overlay">
-        <div class="placement-banner">
-          <span>Click a grid area to place your widget</span>
-          <button class="btn-cancel-placement" id="cancel-placement">Cancel</button>
-        </div>
-      </div>
-
-      <!-- FAB -->
-      <button class="fab" id="fab-add" title="Add widget">
-        <span>+</span>
-      </button>
     </div>
   </div>
 
