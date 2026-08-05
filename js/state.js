@@ -50,9 +50,11 @@ export const state = {
   placementMode: false,
   placementSize: null,
   placementImage: null,
+  placementType: null,
 
   // Carousel
   carouselIndex: 0,
+  todoCarouselIndex: 0,
   widgetSizes: [
     { label: '2×2', subtitle: 'Square — Small', cols: 2, rows: 2 },
     { label: '2×3', subtitle: 'Vertical — Small', cols: 2, rows: 3 },

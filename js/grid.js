@@ -99,14 +99,20 @@ export function clearCellHighlights() {
 /**
  * Check if a widget of size (wCols × wRows) can be placed at (startRow, startCol).
  */
-export function checkPlacement(startRow, startCol, wCols, wRows) {
-  if (startRow + wRows > state.gridRows) return false;
-  if (startCol + wCols > state.gridCols) return false;
+export function checkPlacement(startRow, startCol, wCols, wRows, ignoreWidgetId = null) {
+  const row = Number(startRow);
+  const col = Number(startCol);
+  const cols = Number(wCols);
+  const rows = Number(wRows);
 
-  for (let r = startRow; r < startRow + wRows; r++) {
-    for (let c = startCol; c < startCol + wCols; c++) {
+  if (row + rows > state.gridRows) return false;
+  if (col + cols > state.gridCols) return false;
+
+  for (let r = row; r < row + rows; r++) {
+    for (let c = col; c < col + cols; c++) {
       const key = `${r}-${c}`;
-      if (state.occupiedCells[key]) return false;
+      const occupant = state.occupiedCells[key];
+      if (occupant && occupant !== ignoreWidgetId) return false;
     }
   }
   return true;
@@ -116,8 +122,13 @@ export function checkPlacement(startRow, startCol, wCols, wRows) {
  * Mark cells as occupied by the given widget ID.
  */
 export function markCellsOccupied(startRow, startCol, wCols, wRows, widgetId) {
-  for (let r = startRow; r < startRow + wRows; r++) {
-    for (let c = startCol; c < startCol + wCols; c++) {
+  const row = Number(startRow);
+  const col = Number(startCol);
+  const cols = Number(wCols);
+  const rows = Number(wRows);
+
+  for (let r = row; r < row + rows; r++) {
+    for (let c = col; c < col + cols; c++) {
       const key = `${r}-${c}`;
       state.occupiedCells[key] = widgetId;
       const cell = getCell(r, c);
@@ -162,7 +173,8 @@ function onCellHover(row, col) {
 }
 
 function onCellClick(row, col) {
-  if (!state.placementMode || !state.placementSize || !state.placementImage) return;
+  if (!state.placementMode || !state.placementSize) return;
+  if (state.placementType !== 'todo' && !state.placementImage) return;
 
   const { cols: wCols, rows: wRows } = state.placementSize;
   if (!checkPlacement(row, col, wCols, wRows)) {

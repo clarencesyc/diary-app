@@ -137,7 +137,7 @@ export function onConfirmYes() {
   dom.confirmOverlay.classList.remove('active');
   setTimeout(() => dom.confirmOverlay.classList.add('hidden'), 150);
 
-  enterPlacementMode(state.placementSize, state.placementImage);
+  enterPlacementMode(state.placementSize, state.placementImage, 'gallery');
 }
 
 export function onConfirmNo() {
@@ -148,4 +148,77 @@ export function onConfirmNo() {
   showToast('Image import cancelled');
 
   setTimeout(openDrawer, 200);
+}
+
+
+/* ── To-Do Widget Flow ───────────────────────────────── */
+export function buildTodoSizeCarousel() {
+  const viewport = dom.todoCarouselViewport;
+  viewport.innerHTML = '';
+
+  state.widgetSizes.forEach((size) => {
+    const card = document.createElement('div');
+    card.className = 'size-card';
+
+    const preview = document.createElement('div');
+    preview.className = 'size-preview todo-size-preview';
+    preview.style.gridTemplateColumns = `repeat(${size.cols}, 1fr)`;
+
+    const placeholder = document.createElement('div');
+    placeholder.className = 'size-preview-todo';
+    placeholder.style.gridColumn = '1 / -1';
+    placeholder.style.gridRow = '1 / -1';
+    placeholder.textContent = 'To-Do';
+    preview.appendChild(placeholder);
+
+    card.innerHTML = `
+      <div class="size-label">${size.label}</div>
+      <div class="size-dims">${size.subtitle}</div>
+    `;
+    card.insertBefore(preview, card.firstChild.nextSibling);
+    viewport.appendChild(card);
+  });
+
+  buildTodoCarouselDots();
+  updateTodoCarousel();
+}
+
+function buildTodoCarouselDots() {
+  const dots = dom.todoCarouselDots;
+  dots.innerHTML = '';
+  state.widgetSizes.forEach((_, i) => {
+    const dot = document.createElement('button');
+    dot.className = 'carousel-dot';
+    if (i === state.todoCarouselIndex) dot.classList.add('active');
+    dot.addEventListener('click', () => {
+      state.todoCarouselIndex = i;
+      updateTodoCarousel();
+    });
+    dots.appendChild(dot);
+  });
+}
+
+export function navigateTodoCarousel(dir) {
+  const max = state.widgetSizes.length - 1;
+  state.todoCarouselIndex = Math.max(0, Math.min(max, state.todoCarouselIndex + dir));
+  updateTodoCarousel();
+}
+
+function updateTodoCarousel() {
+  const cards = dom.todoCarouselViewport.querySelectorAll('.size-card');
+  cards.forEach((card) => {
+    card.style.transform = `translateX(-${state.todoCarouselIndex * 100}%)`;
+  });
+
+  dom.todoCarouselDots.querySelectorAll('.carousel-dot').forEach((dot, i) => {
+    dot.classList.toggle('active', i === state.todoCarouselIndex);
+  });
+}
+
+export function onChooseTodoSize() {
+  const size = state.widgetSizes[state.todoCarouselIndex];
+  closeDrawer();
+  setTimeout(() => {
+    enterPlacementMode(size, null, 'todo');
+  }, 250);
 }

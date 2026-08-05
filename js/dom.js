@@ -87,6 +87,31 @@ export const dom = {
   carouselDots: $('#carousel-dots'),
   btnChooseSize: $('#btn-choose-size'),
 
+  // To-Do carousel
+  todoCarouselViewport: $('#todo-carousel-viewport'),
+  todoCarouselPrev: $('#todo-carousel-prev'),
+  todoCarouselNext: $('#todo-carousel-next'),
+  todoCarouselDots: $('#todo-carousel-dots'),
+  btnChooseTodoSize: $('#btn-choose-todo-size'),
+
+  // To-Do compose sheet
+  todoComposeOverlay: $('#todo-compose-overlay'),
+  todoComposeHeading: $('#todo-compose-heading'),
+  todoComposeTitle: $('#todo-compose-title'),
+  todoComposeCancel: $('#todo-compose-cancel'),
+  todoComposeSubmit: $('#todo-compose-submit'),
+
+  // To-Do group rename modal
+  todoRenameOverlay: $('#todo-rename-overlay'),
+  todoRenameInput: $('#todo-rename-input'),
+  todoRenameCancel: $('#todo-rename-cancel'),
+  todoRenameSubmit: $('#todo-rename-submit'),
+
+  // To-Do resize sheet
+  todoResizeOverlay: $('#todo-resize-overlay'),
+  todoResizeSizeList: $('#todo-resize-size-list'),
+  todoResizeCancel: $('#todo-resize-cancel'),
+
   // Confirm
   confirmOverlay: $('#confirm-overlay'),
   confirmImage: $('#confirm-image'),
