@@ -3151,8 +3151,12 @@ body::before {
 
 #ledger-page .ledger-detail-panel {
   width: min(1280px, 100%);
+  height: max-content;
+  flex: 0 0 auto;
   min-height: auto;
   max-height: none;
+  overflow: hidden;
+  box-sizing: border-box;
   padding: clamp(14px, 2vw, 24px);
   border: 1px solid rgba(255,255,255,0.92);
   border-radius: 26px;
@@ -3540,8 +3544,9 @@ body::before {
 #ledger-page .ledger-detail-rows {
   flex: none;
   gap: 8px;
+  height: clamp(220px, 38vh, 460px);
   min-height: 220px;
-  max-height: 460px;
+  max-height: none;
   overflow-y: auto;
   overflow-x: hidden;
   scroll-padding-block: 8px;
@@ -3559,7 +3564,7 @@ body::before {
   box-shadow: 0 7px 18px rgba(91,61,52,0.055);
   transition: transform 0.16s, background 0.16s, box-shadow 0.16s;
   flex: 0 0 auto;
-  overflow: visible;
+  overflow: hidden;
 }
 
 #ledger-page .ledger-row-options {
@@ -3602,7 +3607,7 @@ body::before {
 
 #ledger-page .ledger-row-advanced.hidden { display: none; }
 
-#ledger-page .ledger-row-advanced label:not(.ledger-recurring-toggle) {
+#ledger-page .ledger-row-advanced label {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -3635,21 +3640,6 @@ body::before {
 #ledger-page .ledger-payment-select {
   min-width: 0;
   flex: 1;
-}
-
-#ledger-page .ledger-recurring-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  color: #9a746a;
-  font-size: 0.57rem;
-  font-weight: 650;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-#ledger-page .ledger-recurring-toggle input {
-  accent-color: #d977a2;
 }
 
 #ledger-page .ledger-cell-memo {

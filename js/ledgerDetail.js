@@ -38,9 +38,6 @@ const filters = {
 };
 
 const PAYMENT_METHODS = ['현금', '체크카드', '신용카드', '계좌이체'];
-const RECURRENCE_OPTIONS = [
-  ['week', '매주'], ['month', '매월'], ['year', '매년'],
-];
 
 let allItems = [];
 let currentWidget = null;
@@ -389,9 +386,6 @@ async function persistRow(row, itemId) {
     kind: row.dataset.kind === 'income' ? 'income' : 'expense',
     paymentMethod: row.querySelector('[data-field="paymentMethod"]')?.value || '',
     memo: row.querySelector('[data-field="memo"]')?.value || '',
-    recurring: Boolean(row.querySelector('[data-field="recurring"]')?.checked),
-    recurrenceFrequency: row.querySelector('[data-field="recurrenceFrequency"]')?.value || 'month',
-    recurrenceEndDate: row.querySelector('[data-field="recurrenceEndDate"]')?.value || '',
     originalAmount: Number(row.querySelector('[data-field="originalAmount"]')?.value) || Number(row.querySelector('[data-field="price"]').value) || 0,
     currency: travelSettings.localCurrency || 'KRW',
     exchangeRate: Number(travelSettings.exchangeRate) || 1,
@@ -428,9 +422,6 @@ function buildEditableRow(item) {
       `<option value="${name}" ${item.paymentMethod === name ? 'selected' : ''}>${name}</option>`
     ))
     .join('');
-  const recurrenceOptions = RECURRENCE_OPTIONS.map(([key, label]) =>
-    `<option value="${key}" ${(item.recurrenceFrequency || 'month') === key ? 'selected' : ''}>${label}</option>`
-  ).join('');
   const travelers = travelSettings.travelers || [];
   const payerOptions = ['<option value="">결제자 선택</option>', ...travelers.map((name) => `<option value="${escapeHTML(name)}" ${item.payer === name ? 'selected' : ''}>${escapeHTML(name)}</option>`)].join('');
   const participantOptions = travelers.map((name) => `<label class="trip-participant"><input type="checkbox" data-participant value="${escapeHTML(name)}" ${(item.participants || []).includes(name) ? 'checked' : ''}/><span>${escapeHTML(name)}</span></label>`).join('');
@@ -451,12 +442,6 @@ function buildEditableRow(item) {
     <div class="ledger-row-advanced hidden">
       <label><span>결제수단</span><select class="ledger-cell ledger-payment-select" data-field="paymentMethod">${paymentOptions}</select></label>
       <label class="ledger-memo-wrap"><span>메모</span><input class="ledger-cell ledger-cell-memo" type="text" data-field="memo" placeholder="선택 사항" value="${escapeHTML(item.memo || '')}" /></label>
-      <label class="ledger-recurring-toggle" title="설정한 주기마다 이 거래를 자동으로 추가합니다">
-        <input type="checkbox" data-field="recurring" aria-label="반복 거래 사용" ${item.recurring ? 'checked' : ''} />
-        <span>자동 반복</span>
-      </label>
-      <label class="ledger-recurrence-field"><span>주기</span><select class="ledger-cell" data-field="recurrenceFrequency">${recurrenceOptions}</select></label>
-      <label class="ledger-recurrence-field"><span>종료일</span><input class="ledger-cell" type="date" data-field="recurrenceEndDate" value="${escapeHTML(item.recurrenceEndDate || '')}" /></label>
       <label class="trip-amount-field"><span>현지 금액 · ${escapeHTML(travelSettings.localCurrency || 'KRW')}</span><input class="ledger-cell" type="number" min="0" step="0.01" data-field="originalAmount" value="${item.originalAmount ?? item.price ?? 0}" /><small>1 ${escapeHTML(travelSettings.localCurrency || 'KRW')} = ${Number(travelSettings.exchangeRate) || 1}원</small></label>
       <label><span>결제자</span><select class="ledger-cell" data-field="payer">${payerOptions}</select></label>
       <div class="trip-participants"><span>함께 부담</span><div>${participantOptions || '<small>여행 설정에서 동행자를 추가하세요</small>'}</div></div>
@@ -468,7 +453,7 @@ function buildEditableRow(item) {
   const catWrap = row.querySelector('[data-field="category-wrap"]');
   row._catApi = mountCategorySelect(catWrap, item.category || '', () => persistRow(row, item.id), DETAIL_MENU_ID);
 
-  row.querySelectorAll('.ledger-cell, [data-field="recurring"], [data-participant]').forEach((input) => {
+  row.querySelectorAll('.ledger-cell, [data-participant]').forEach((input) => {
     input.addEventListener('change', () => persistRow(row, item.id));
   });
   row.querySelector('[data-field="receiptFile"]')?.addEventListener('change', (e) => {
@@ -482,13 +467,6 @@ function buildEditableRow(item) {
 
   const advanced = row.querySelector('.ledger-row-advanced');
   const more = row.querySelector('.ledger-row-more');
-  const syncRecurringFields = () => {
-    const enabled = row.querySelector('[data-field="recurring"]')?.checked;
-    row.querySelectorAll('.ledger-recurrence-field select, .ledger-recurrence-field input')
-      .forEach((field) => { field.disabled = !enabled; });
-  };
-  syncRecurringFields();
-  row.querySelector('[data-field="recurring"]')?.addEventListener('change', syncRecurringFields);
   more.addEventListener('click', () => {
     const opening = advanced.classList.contains('hidden');
     if (opening) {
@@ -622,65 +600,6 @@ function syncKindTabs() {
   });
 }
 
-function nextRecurringDate(iso, frequency) {
-  const [year, month, day] = String(iso).split('-').map(Number);
-  const date = new Date(Date.UTC(year, (month || 1) - 1, day || 1));
-  if (frequency === 'week') date.setUTCDate(date.getUTCDate() + 7);
-  else if (frequency === 'year') {
-    date.setUTCFullYear(date.getUTCFullYear() + 1);
-  } else {
-    const targetMonth = date.getUTCMonth() + 1;
-    date.setUTCDate(1);
-    date.setUTCMonth(targetMonth);
-    const lastDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
-    date.setUTCDate(Math.min(day || 1, lastDay));
-  }
-  return date.toISOString().slice(0, 10);
-}
-
-async function materializeRecurringItems(items) {
-  if (!currentWidget || !diaryId()) return items;
-  const today = todayISO();
-  const roots = items.filter((i) => i.recurring && !i.recurringSourceId && i.date);
-  let next = items;
-  for (const root of roots) {
-    const children = next
-      .filter((i) => i.recurringSourceId === root.id)
-      .sort((a, b) => String(a.date).localeCompare(String(b.date)));
-    let cursor = children.at(-1)?.date || root.date;
-    const frequency = root.recurrenceFrequency || 'month';
-    let due = nextRecurringDate(cursor, frequency);
-    let guard = 0;
-    while (due <= today && (!root.recurrenceEndDate || due <= root.recurrenceEndDate) && guard < 60) {
-      const data = await createLedgerItem(diaryId(), currentWidget.id, {
-        date: due,
-        content: root.content,
-        category: root.category,
-        price: root.price,
-        kind: root.kind,
-        paymentMethod: root.paymentMethod || '',
-        memo: root.memo || '',
-        recurring: false,
-        recurrenceFrequency: frequency,
-        recurrenceEndDate: root.recurrenceEndDate || '',
-        originalAmount: root.originalAmount ?? root.price,
-        currency: root.currency || travelSettings.localCurrency || 'KRW',
-        exchangeRate: root.exchangeRate || 1,
-        payer: root.payer || '',
-        participants: root.participants || [],
-        locationName: root.locationName || '',
-        receiptData: '',
-        recurringSourceId: root.id,
-      });
-      next = data.items || next;
-      cursor = due;
-      due = nextRecurringDate(cursor, frequency);
-      guard += 1;
-    }
-  }
-  return next;
-}
-
 async function loadItems() {
   const id = diaryId();
   if (!id || !currentWidget) return;
@@ -694,7 +613,7 @@ async function loadItems() {
     }
     fillTripSettingsForm();
     const data = await fetchLedgerItems(id, currentWidget.id);
-    allItems = await materializeRecurringItems(data.items || []);
+    allItems = data.items || [];
     allItems.forEach((i) => {
       if (i.category) rememberCategory(i.category);
     });
@@ -723,9 +642,6 @@ async function addItem(kind = 'expense') {
       kind: kind === 'income' ? 'income' : 'expense',
       paymentMethod: '',
       memo: '',
-      recurring: false,
-      recurrenceFrequency: 'month',
-      recurrenceEndDate: '',
       originalAmount: 0,
       currency: travelSettings.localCurrency || 'KRW',
       exchangeRate: travelSettings.exchangeRate || 1,
@@ -845,14 +761,11 @@ export function bindLedgerDetailEvents() {
   $('#ledger-export')?.addEventListener('click', () => {
     const rows = getFilteredSortedItems();
     const csvCell = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`;
-    const header = ['구분', '날짜', '내용', '카테고리', '원화금액', '현지금액', '통화', '환율', '결제수단', '결제자', '참여자', '장소', '메모', '반복'];
+    const header = ['구분', '날짜', '내용', '카테고리', '원화금액', '현지금액', '통화', '환율', '결제수단', '결제자', '참여자', '장소', '메모'];
     const body = rows.map((i) => [
       itemKind(i) === 'income' ? '수입' : '지출',
       i.date, i.content, i.category, i.price, i.originalAmount, i.currency, i.exchangeRate,
       i.paymentMethod, i.payer, (i.participants || []).join(' / '), i.locationName, i.memo,
-      i.recurring
-        ? ({ week: '매주', month: '매월', year: '매년' }[i.recurrenceFrequency || 'month'])
-        : '',
     ].map(csvCell).join(','));
     const blob = new Blob(['\uFEFF' + [header.map(csvCell).join(','), ...body].join('\n')], {
       type: 'text/csv;charset=utf-8',
