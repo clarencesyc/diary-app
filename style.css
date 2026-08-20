@@ -3541,7 +3541,10 @@ body::before {
   flex: none;
   gap: 8px;
   min-height: 220px;
-  max-height: 360px;
+  max-height: 460px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-padding-block: 8px;
   padding: 2px 4px 4px 2px;
 }
 
@@ -3555,6 +3558,8 @@ body::before {
   background: rgba(255,255,255,0.58);
   box-shadow: 0 7px 18px rgba(91,61,52,0.055);
   transition: transform 0.16s, background 0.16s, box-shadow 0.16s;
+  flex: 0 0 auto;
+  overflow: visible;
 }
 
 #ledger-page .ledger-row-options {
@@ -3579,10 +3584,10 @@ body::before {
 #ledger-page .ledger-row-advanced {
   grid-column: 2 / -1;
   display: grid;
-  grid-template-columns: minmax(130px,.8fr) minmax(180px,1.5fr) auto minmax(86px,.55fr) minmax(132px,.8fr);
-  align-items: end;
-  gap: 8px;
-  padding: 9px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: start;
+  gap: 10px 12px;
+  padding: 12px;
   border-top: 1px dashed rgba(115,79,69,0.11);
   border-radius: 9px;
   background: rgba(255,255,255,0.3);
@@ -3609,6 +3614,17 @@ body::before {
 
 #ledger-page .ledger-row-advanced .ledger-cell {
   width: 100%;
+}
+
+#ledger-page .ledger-row-advanced .ledger-memo-wrap,
+#ledger-page .trip-participants {
+  grid-column: span 2;
+}
+
+#ledger-page .trip-amount-field small {
+  color: #aa8b82;
+  font-size: .52rem;
+  font-weight: 550;
 }
 
 #ledger-page .ledger-row-advanced :disabled {
@@ -3677,6 +3693,12 @@ body::before {
 #ledger-page .ledger-detail-row .ledger-cell:focus {
   background: white;
   box-shadow: 0 0 0 3px rgba(225,132,171,0.13);
+}
+
+#ledger-page .ledger-cell-price.is-converted {
+  color: #9b6b7d;
+  cursor: default;
+  background: rgba(245,235,232,.52);
 }
 
 #ledger-page .ledger-add-actions {

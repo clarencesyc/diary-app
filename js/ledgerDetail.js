@@ -168,6 +168,16 @@ async function persistTravelSettings() {
     travelSettings = data.settings || next;
     currentWidget.travelSettings = travelSettings;
     saveEntries();
+    for (const item of allItems) {
+      const originalAmount = Number(item.originalAmount ?? item.price) || 0;
+      const updated = await updateLedgerItem(diaryId(), currentWidget.id, item.id, {
+        currency: travelSettings.localCurrency || 'KRW',
+        exchangeRate: Number(travelSettings.exchangeRate) || 1,
+        originalAmount,
+        price: Math.round(originalAmount * (Number(travelSettings.exchangeRate) || 1)),
+      });
+      allItems = updated.items || allItems;
+    }
     fillTripSettingsForm();
     setSaveStatus('saved');
     $('#trip-settings-panel')?.classList.add('hidden');
@@ -383,8 +393,8 @@ async function persistRow(row, itemId) {
     recurrenceFrequency: row.querySelector('[data-field="recurrenceFrequency"]')?.value || 'month',
     recurrenceEndDate: row.querySelector('[data-field="recurrenceEndDate"]')?.value || '',
     originalAmount: Number(row.querySelector('[data-field="originalAmount"]')?.value) || Number(row.querySelector('[data-field="price"]').value) || 0,
-    currency: row.querySelector('[data-field="currency"]')?.value || travelSettings.localCurrency || 'KRW',
-    exchangeRate: Number(row.querySelector('[data-field="exchangeRate"]')?.value) || 1,
+    currency: travelSettings.localCurrency || 'KRW',
+    exchangeRate: Number(travelSettings.exchangeRate) || 1,
     payer: row.querySelector('[data-field="payer"]')?.value || '',
     participants: [...row.querySelectorAll('[data-participant]:checked')].map((input) => input.value),
     locationName: row.querySelector('[data-field="locationName"]')?.value || '',
@@ -421,11 +431,10 @@ function buildEditableRow(item) {
   const recurrenceOptions = RECURRENCE_OPTIONS.map(([key, label]) =>
     `<option value="${key}" ${(item.recurrenceFrequency || 'month') === key ? 'selected' : ''}>${label}</option>`
   ).join('');
-  const currencies = ['KRW', 'JPY', 'CNY', 'USD', 'EUR', 'THB', 'VND', 'TWD'];
-  const currencyOptions = currencies.map((code) => `<option value="${code}" ${(item.currency || travelSettings.localCurrency || 'KRW') === code ? 'selected' : ''}>${code}</option>`).join('');
   const travelers = travelSettings.travelers || [];
   const payerOptions = ['<option value="">결제자 선택</option>', ...travelers.map((name) => `<option value="${escapeHTML(name)}" ${item.payer === name ? 'selected' : ''}>${escapeHTML(name)}</option>`)].join('');
   const participantOptions = travelers.map((name) => `<label class="trip-participant"><input type="checkbox" data-participant value="${escapeHTML(name)}" ${(item.participants || []).includes(name) ? 'checked' : ''}/><span>${escapeHTML(name)}</span></label>`).join('');
+  const convertedPriceLocked = Boolean(travelSettings.localCurrency);
   const row = document.createElement('div');
   row.className = `ledger-detail-row is-editable kind-${kind}`;
   row.dataset.itemId = item.id;
@@ -436,7 +445,7 @@ function buildEditableRow(item) {
     <input class="ledger-cell ledger-cell-date" type="date" data-field="date" value="${escapeHTML(item.date || '')}" />
     <input class="ledger-cell ledger-cell-content" type="text" data-field="content" placeholder="내용 입력" value="${escapeHTML(item.content || '')}" />
     <div class="ledger-cell-category" data-field="category-wrap"></div>
-    <input class="ledger-cell ledger-cell-price" type="number" data-field="price" min="0" step="1" placeholder="0" value="${item.price ?? 0}" />
+    <input class="ledger-cell ledger-cell-price ${convertedPriceLocked ? 'is-converted' : ''}" type="number" data-field="price" min="0" step="1" placeholder="0" value="${item.price ?? 0}" ${convertedPriceLocked ? 'readonly title="여행 설정의 통화·환율과 현지 금액으로 자동 계산됩니다"' : ''} />
     <button type="button" class="ledger-row-more" aria-expanded="false">상세 ▾</button>
     <button type="button" class="ledger-row-delete" title="삭제">×</button>
     <div class="ledger-row-advanced hidden">
@@ -448,9 +457,7 @@ function buildEditableRow(item) {
       </label>
       <label class="ledger-recurrence-field"><span>주기</span><select class="ledger-cell" data-field="recurrenceFrequency">${recurrenceOptions}</select></label>
       <label class="ledger-recurrence-field"><span>종료일</span><input class="ledger-cell" type="date" data-field="recurrenceEndDate" value="${escapeHTML(item.recurrenceEndDate || '')}" /></label>
-      <label><span>현지 금액</span><input class="ledger-cell" type="number" min="0" step="0.01" data-field="originalAmount" value="${item.originalAmount ?? item.price ?? 0}" /></label>
-      <label><span>통화</span><select class="ledger-cell" data-field="currency">${currencyOptions}</select></label>
-      <label><span>환율(원)</span><input class="ledger-cell" type="number" min="0" step="0.0001" data-field="exchangeRate" value="${item.exchangeRate || travelSettings.exchangeRate || 1}" /></label>
+      <label class="trip-amount-field"><span>현지 금액 · ${escapeHTML(travelSettings.localCurrency || 'KRW')}</span><input class="ledger-cell" type="number" min="0" step="0.01" data-field="originalAmount" value="${item.originalAmount ?? item.price ?? 0}" /><small>1 ${escapeHTML(travelSettings.localCurrency || 'KRW')} = ${Number(travelSettings.exchangeRate) || 1}원</small></label>
       <label><span>결제자</span><select class="ledger-cell" data-field="payer">${payerOptions}</select></label>
       <div class="trip-participants"><span>함께 부담</span><div>${participantOptions || '<small>여행 설정에서 동행자를 추가하세요</small>'}</div></div>
       <label><span>장소</span><input class="ledger-cell" type="text" data-field="locationName" placeholder="예: 시부야역" value="${escapeHTML(item.locationName || '')}" /></label>
@@ -484,9 +491,18 @@ function buildEditableRow(item) {
   row.querySelector('[data-field="recurring"]')?.addEventListener('change', syncRecurringFields);
   more.addEventListener('click', () => {
     const opening = advanced.classList.contains('hidden');
+    if (opening) {
+      row.parentElement?.querySelectorAll('.ledger-detail-row').forEach((other) => {
+        if (other === row) return;
+        other.querySelector('.ledger-row-advanced')?.classList.add('hidden');
+        const otherButton = other.querySelector('.ledger-row-more');
+        if (otherButton) { otherButton.setAttribute('aria-expanded', 'false'); otherButton.textContent = '상세 ▾'; }
+      });
+    }
     advanced.classList.toggle('hidden', !opening);
     more.setAttribute('aria-expanded', String(opening));
     more.textContent = opening ? '닫기 ▴' : '상세 ▾';
+    if (opening) requestAnimationFrame(() => row.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
   });
 
   row.querySelector('.kind-toggle').addEventListener('click', (e) => {
