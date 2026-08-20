@@ -10,6 +10,8 @@ import {
   createLedgerItem,
   updateLedgerItem,
   deleteLedgerItem,
+  fetchLedgerCategories,
+  saveLedgerCategories,
 } from './api.js';
 
 const CAT_COLORS = [
@@ -95,8 +97,25 @@ export function rememberCategory(name) {
   const trimmed = String(name || '').trim();
   if (!trimmed) return loadCategories();
   const list = loadCategories();
-  if (!list.includes(trimmed)) list.push(trimmed);
-  return saveCategories(list);
+  if (list.includes(trimmed)) return list;
+  list.push(trimmed);
+  const saved = saveCategories(list);
+  if (diaryId()) saveLedgerCategories(diaryId(), 'shared', saved).catch(() => {});
+  return saved;
+}
+
+export async function syncCategories(widgetId) {
+  if (!diaryId()) return loadCategories();
+  const local = loadCategories();
+  try {
+    const data = await fetchLedgerCategories(diaryId(), widgetId || 'shared');
+    const merged = [...new Set([...DEFAULT_CATEGORIES, ...local, ...(data.categories || [])])];
+    saveCategories(merged);
+    const saved = await saveLedgerCategories(diaryId(), widgetId || 'shared', merged);
+    return saveCategories(saved.categories || merged);
+  } catch {
+    return local;
+  }
 }
 
 export function colorFor(name) {

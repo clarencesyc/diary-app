@@ -33,6 +33,17 @@ export function fetchLedgerItems(diaryId, widgetId) {
   return request(`/api/diaries/${encodeURIComponent(diaryId)}/ledgers/${encodeURIComponent(widgetId)}`);
 }
 
+export function fetchLedgerCategories(diaryId, widgetId) {
+  return request(`/api/diaries/${encodeURIComponent(diaryId)}/ledgers/${encodeURIComponent(widgetId)}/categories`);
+}
+
+export function saveLedgerCategories(diaryId, widgetId, categories) {
+  return request(`/api/diaries/${encodeURIComponent(diaryId)}/ledgers/${encodeURIComponent(widgetId)}/categories`, {
+    method: 'PUT',
+    body: JSON.stringify({ categories }),
+  });
+}
+
 export function createLedgerItem(diaryId, widgetId, payload) {
   return request(`/api/diaries/${encodeURIComponent(diaryId)}/ledgers/${encodeURIComponent(widgetId)}`, {
     method: 'POST',

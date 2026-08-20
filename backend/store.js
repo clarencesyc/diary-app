@@ -7,12 +7,29 @@ const path = require('path');
 
 const DATA_DIR = path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'ledgers.json');
+const CATEGORY_FILE = path.join(DATA_DIR, 'ledger-categories.json');
 
 function ensureStore() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(DATA_FILE)) {
     fs.writeFileSync(DATA_FILE, JSON.stringify({ items: [] }, null, 2));
   }
+}
+
+function readCategories() {
+  ensureStore();
+  if (!fs.existsSync(CATEGORY_FILE)) return {};
+  try {
+    const data = JSON.parse(fs.readFileSync(CATEGORY_FILE, 'utf8'));
+    return data && typeof data === 'object' ? data : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeCategories(data) {
+  ensureStore();
+  fs.writeFileSync(CATEGORY_FILE, JSON.stringify(data, null, 2));
 }
 
 function readAll() {
@@ -51,6 +68,19 @@ function summarize(items) {
 }
 
 module.exports = {
+  listCategories(diaryId) {
+    const data = readCategories();
+    return Array.isArray(data[diaryId]) ? data[diaryId] : [];
+  },
+
+  saveCategories(diaryId, categories) {
+    const data = readCategories();
+    data[diaryId] = [...new Set((Array.isArray(categories) ? categories : [])
+      .map((name) => String(name).trim()).filter(Boolean))];
+    writeCategories(data);
+    return data[diaryId];
+  },
+
   listByWidget(diaryId, widgetId) {
     return readAll()
       .filter((i) => i.diaryId === diaryId && i.widgetId === widgetId)
@@ -72,6 +102,9 @@ module.exports = {
       paymentMethod: String(payload.paymentMethod || '').trim(),
       memo: String(payload.memo || '').trim(),
       recurring: Boolean(payload.recurring),
+      recurrenceFrequency: ['week', 'month', 'year'].includes(payload.recurrenceFrequency)
+        ? payload.recurrenceFrequency : 'month',
+      recurrenceEndDate: payload.recurrenceEndDate ? String(payload.recurrenceEndDate) : '',
       recurringSourceId: payload.recurringSourceId ? String(payload.recurringSourceId) : null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -100,6 +133,13 @@ module.exports = {
         payload.paymentMethod !== undefined ? String(payload.paymentMethod).trim() : (prev.paymentMethod || ''),
       memo: payload.memo !== undefined ? String(payload.memo).trim() : (prev.memo || ''),
       recurring: payload.recurring !== undefined ? Boolean(payload.recurring) : Boolean(prev.recurring),
+      recurrenceFrequency:
+        payload.recurrenceFrequency !== undefined && ['week', 'month', 'year'].includes(payload.recurrenceFrequency)
+          ? payload.recurrenceFrequency : (prev.recurrenceFrequency || 'month'),
+      recurrenceEndDate:
+        payload.recurrenceEndDate !== undefined
+          ? (payload.recurrenceEndDate ? String(payload.recurrenceEndDate) : '')
+          : (prev.recurrenceEndDate || ''),
       recurringSourceId:
         payload.recurringSourceId !== undefined
           ? (payload.recurringSourceId ? String(payload.recurringSourceId) : null)

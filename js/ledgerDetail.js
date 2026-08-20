@@ -20,6 +20,7 @@ import {
   mountCategorySelect,
   itemKind,
   summarizeItems,
+  syncCategories,
 } from './ledger.js';
 import { rerenderPlacedWidgets } from './widgets.js';
 
@@ -34,6 +35,9 @@ const filters = {
 };
 
 const PAYMENT_METHODS = ['현금', '체크카드', '신용카드', '계좌이체'];
+const RECURRENCE_OPTIONS = [
+  ['week', '매주'], ['month', '매월'], ['year', '매년'],
+];
 
 let allItems = [];
 let currentWidget = null;
@@ -62,6 +66,14 @@ function monthKey(d) {
 function currentMonthBudget() {
   if (!currentWidget) return 0;
   return Number(currentWidget.monthlyBudgets?.[monthKey(summaryCursor)]) || 0;
+}
+
+function setSaveStatus(mode = 'saved') {
+  const el = $('#ledger-save-status');
+  if (!el) return;
+  const labels = { saving: '저장 중…', saved: '✓ 저장됨', error: '저장 실패' };
+  el.textContent = labels[mode] || labels.saved;
+  el.className = `ledger-save-status is-${mode}`;
 }
 
 function closePopovers() {
@@ -259,16 +271,21 @@ async function persistRow(row, itemId) {
     paymentMethod: row.querySelector('[data-field="paymentMethod"]')?.value || '',
     memo: row.querySelector('[data-field="memo"]')?.value || '',
     recurring: Boolean(row.querySelector('[data-field="recurring"]')?.checked),
+    recurrenceFrequency: row.querySelector('[data-field="recurrenceFrequency"]')?.value || 'month',
+    recurrenceEndDate: row.querySelector('[data-field="recurrenceEndDate"]')?.value || '',
   };
   if (payload.category) rememberCategory(payload.category);
   try {
+    setSaveStatus('saving');
     const data = await updateLedgerItem(diaryId(), currentWidget.id, itemId, payload);
     allItems = data.items;
     dirty = true;
     paintTotals(getFilteredSortedItems());
     renderActiveFilterChips();
     renderMonthSummary();
+    setSaveStatus('saved');
   } catch (err) {
+    setSaveStatus('error');
     showToast(err.message || '저장 실패');
     await loadItems();
   }
@@ -281,6 +298,9 @@ function buildEditableRow(item) {
       `<option value="${name}" ${item.paymentMethod === name ? 'selected' : ''}>${name}</option>`
     ))
     .join('');
+  const recurrenceOptions = RECURRENCE_OPTIONS.map(([key, label]) =>
+    `<option value="${key}" ${(item.recurrenceFrequency || 'month') === key ? 'selected' : ''}>${label}</option>`
+  ).join('');
   const row = document.createElement('div');
   row.className = `ledger-detail-row is-editable kind-${kind}`;
   row.dataset.itemId = item.id;
@@ -291,15 +311,18 @@ function buildEditableRow(item) {
     <input class="ledger-cell ledger-cell-content" type="text" data-field="content" placeholder="내용 입력" value="${escapeHTML(item.content || '')}" />
     <div class="ledger-cell-category" data-field="category-wrap"></div>
     <input class="ledger-cell ledger-cell-price" type="number" data-field="price" min="0" step="1" placeholder="0" value="${item.price ?? 0}" />
-    <div class="ledger-row-options">
-      <select class="ledger-cell ledger-payment-select" data-field="paymentMethod">${paymentOptions}</select>
-      <label class="ledger-recurring-toggle" title="체크하면 다음 달부터 같은 날짜에 이 거래가 자동으로 추가됩니다">
-        <input type="checkbox" data-field="recurring" aria-label="매월 같은 날짜에 자동 추가" ${item.recurring ? 'checked' : ''} />
-        <span>매월 자동</span>
-      </label>
-    </div>
+    <button type="button" class="ledger-row-more" aria-expanded="false">상세 ▾</button>
     <button type="button" class="ledger-row-delete" title="삭제">×</button>
-    <input class="ledger-cell ledger-cell-memo" type="text" data-field="memo" placeholder="메모 (선택)" value="${escapeHTML(item.memo || '')}" />
+    <div class="ledger-row-advanced hidden">
+      <label><span>결제수단</span><select class="ledger-cell ledger-payment-select" data-field="paymentMethod">${paymentOptions}</select></label>
+      <label class="ledger-memo-wrap"><span>메모</span><input class="ledger-cell ledger-cell-memo" type="text" data-field="memo" placeholder="선택 사항" value="${escapeHTML(item.memo || '')}" /></label>
+      <label class="ledger-recurring-toggle" title="설정한 주기마다 이 거래를 자동으로 추가합니다">
+        <input type="checkbox" data-field="recurring" aria-label="반복 거래 사용" ${item.recurring ? 'checked' : ''} />
+        <span>자동 반복</span>
+      </label>
+      <label class="ledger-recurrence-field"><span>주기</span><select class="ledger-cell" data-field="recurrenceFrequency">${recurrenceOptions}</select></label>
+      <label class="ledger-recurrence-field"><span>종료일</span><input class="ledger-cell" type="date" data-field="recurrenceEndDate" value="${escapeHTML(item.recurrenceEndDate || '')}" /></label>
+    </div>
   `;
 
   const catWrap = row.querySelector('[data-field="category-wrap"]');
@@ -307,6 +330,22 @@ function buildEditableRow(item) {
 
   row.querySelectorAll('.ledger-cell, [data-field="recurring"]').forEach((input) => {
     input.addEventListener('change', () => persistRow(row, item.id));
+  });
+
+  const advanced = row.querySelector('.ledger-row-advanced');
+  const more = row.querySelector('.ledger-row-more');
+  const syncRecurringFields = () => {
+    const enabled = row.querySelector('[data-field="recurring"]')?.checked;
+    row.querySelectorAll('.ledger-recurrence-field select, .ledger-recurrence-field input')
+      .forEach((field) => { field.disabled = !enabled; });
+  };
+  syncRecurringFields();
+  row.querySelector('[data-field="recurring"]')?.addEventListener('change', syncRecurringFields);
+  more.addEventListener('click', () => {
+    const opening = advanced.classList.contains('hidden');
+    advanced.classList.toggle('hidden', !opening);
+    more.setAttribute('aria-expanded', String(opening));
+    more.textContent = opening ? '닫기 ▴' : '상세 ▾';
   });
 
   row.querySelector('.kind-toggle').addEventListener('click', (e) => {
@@ -324,11 +363,14 @@ function buildEditableRow(item) {
     if (!currentWidget) return;
     if (!window.confirm('이 거래 항목을 삭제할까요?')) return;
     try {
+      setSaveStatus('saving');
       const data = await deleteLedgerItem(diaryId(), currentWidget.id, item.id);
       allItems = data.items;
       dirty = true;
       renderDetailRows();
+      setSaveStatus('saved');
     } catch (err) {
+      setSaveStatus('error');
       showToast(err.message || '삭제 실패');
     }
   });
@@ -413,29 +455,54 @@ function resetFiltersQuiet() {
   if (search) search.value = '';
 }
 
-async function materializeRecurringForCurrentMonth(items) {
+function nextRecurringDate(iso, frequency) {
+  const [year, month, day] = String(iso).split('-').map(Number);
+  const date = new Date(Date.UTC(year, (month || 1) - 1, day || 1));
+  if (frequency === 'week') date.setUTCDate(date.getUTCDate() + 7);
+  else if (frequency === 'year') {
+    date.setUTCFullYear(date.getUTCFullYear() + 1);
+  } else {
+    const targetMonth = date.getUTCMonth() + 1;
+    date.setUTCDate(1);
+    date.setUTCMonth(targetMonth);
+    const lastDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+    date.setUTCDate(Math.min(day || 1, lastDay));
+  }
+  return date.toISOString().slice(0, 10);
+}
+
+async function materializeRecurringItems(items) {
   if (!currentWidget || !diaryId()) return items;
-  const target = monthKey(new Date());
-  const roots = items.filter((i) => i.recurring && !i.recurringSourceId && String(i.date || '').slice(0, 7) < target);
+  const today = todayISO();
+  const roots = items.filter((i) => i.recurring && !i.recurringSourceId && i.date);
   let next = items;
   for (const root of roots) {
-    const alreadyExists = next.some((i) =>
-      i.recurringSourceId === root.id && String(i.date || '').startsWith(target)
-    );
-    if (alreadyExists) continue;
-    const day = Math.min(Number(String(root.date || '').slice(8, 10)) || 1, 28);
-    const data = await createLedgerItem(diaryId(), currentWidget.id, {
-      date: `${target}-${String(day).padStart(2, '0')}`,
-      content: root.content,
-      category: root.category,
-      price: root.price,
-      kind: root.kind,
-      paymentMethod: root.paymentMethod || '',
-      memo: root.memo || '',
-      recurring: false,
-      recurringSourceId: root.id,
-    });
-    next = data.items || next;
+    const children = next
+      .filter((i) => i.recurringSourceId === root.id)
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    let cursor = children.at(-1)?.date || root.date;
+    const frequency = root.recurrenceFrequency || 'month';
+    let due = nextRecurringDate(cursor, frequency);
+    let guard = 0;
+    while (due <= today && (!root.recurrenceEndDate || due <= root.recurrenceEndDate) && guard < 60) {
+      const data = await createLedgerItem(diaryId(), currentWidget.id, {
+        date: due,
+        content: root.content,
+        category: root.category,
+        price: root.price,
+        kind: root.kind,
+        paymentMethod: root.paymentMethod || '',
+        memo: root.memo || '',
+        recurring: false,
+        recurrenceFrequency: frequency,
+        recurrenceEndDate: root.recurrenceEndDate || '',
+        recurringSourceId: root.id,
+      });
+      next = data.items || next;
+      cursor = due;
+      due = nextRecurringDate(cursor, frequency);
+      guard += 1;
+    }
   }
   return next;
 }
@@ -444,13 +511,15 @@ async function loadItems() {
   const id = diaryId();
   if (!id || !currentWidget) return;
   try {
+    await syncCategories(currentWidget.id);
     const data = await fetchLedgerItems(id, currentWidget.id);
-    allItems = await materializeRecurringForCurrentMonth(data.items || []);
+    allItems = await materializeRecurringItems(data.items || []);
     allItems.forEach((i) => {
       if (i.category) rememberCategory(i.category);
     });
   } catch (err) {
     allItems = [];
+    setSaveStatus('error');
     showToast(err.message || '불러오기 실패');
   }
   syncPopoverUI();
@@ -464,6 +533,7 @@ async function addItem(kind = 'expense') {
     return;
   }
   try {
+    setSaveStatus('saving');
     const data = await createLedgerItem(id, currentWidget.id, {
       date: todayISO(),
       content: '',
@@ -473,9 +543,12 @@ async function addItem(kind = 'expense') {
       paymentMethod: '',
       memo: '',
       recurring: false,
+      recurrenceFrequency: 'month',
+      recurrenceEndDate: '',
     });
     allItems = data.items;
     dirty = true;
+    setSaveStatus('saved');
     const newest = allItems[allItems.length - 1];
     if (newest && !getFilteredSortedItems().some((i) => i.id === newest.id)) {
       filters.dateFrom = '';
@@ -490,6 +563,7 @@ async function addItem(kind = 'expense') {
       ?.querySelector(`.ledger-detail-row[data-item-id="${newest?.id}"] [data-field="content"]`)
       ?.focus();
   } catch (err) {
+    setSaveStatus('error');
     showToast(err.message || '백엔드에 연결할 수 없습니다');
   }
 }
@@ -503,6 +577,7 @@ export async function openLedgerDetail(widget) {
   if (sub) sub.textContent = state.currentDiary?.title || 'Diary';
   const heading = $('.ledger-detail-heading');
   if (heading) heading.textContent = widget.budgetName || 'Budget';
+  setSaveStatus('saved');
   navigateTo('ledger-page');
   await loadItems();
 }
@@ -542,6 +617,7 @@ export function bindLedgerDetailEvents() {
     dirty = true;
     renderMonthSummary();
     rerenderPlacedWidgets();
+    setSaveStatus('saved');
   });
   $('#ledger-rename')?.addEventListener('click', () => {
     if (!currentWidget) return;
@@ -553,6 +629,7 @@ export function bindLedgerDetailEvents() {
     const heading = $('.ledger-detail-heading');
     if (heading) heading.textContent = currentWidget.budgetName;
     rerenderPlacedWidgets();
+    setSaveStatus('saved');
   });
   $('#ledger-export')?.addEventListener('click', () => {
     const rows = getFilteredSortedItems();
@@ -560,7 +637,10 @@ export function bindLedgerDetailEvents() {
     const header = ['구분', '날짜', '내용', '카테고리', '금액', '결제수단', '메모', '반복'];
     const body = rows.map((i) => [
       itemKind(i) === 'income' ? '수입' : '지출',
-      i.date, i.content, i.category, i.price, i.paymentMethod, i.memo, i.recurring ? '매월' : '',
+      i.date, i.content, i.category, i.price, i.paymentMethod, i.memo,
+      i.recurring
+        ? ({ week: '매주', month: '매월', year: '매년' }[i.recurrenceFrequency || 'month'])
+        : '',
     ].map(csvCell).join(','));
     const blob = new Blob(['\uFEFF' + [header.map(csvCell).join(','), ...body].join('\n')], {
       type: 'text/csv;charset=utf-8',
