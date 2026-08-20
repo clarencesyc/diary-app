@@ -3152,6 +3152,54 @@ body::before {
   -webkit-backdrop-filter: blur(28px) saturate(1.15);
 }
 
+#ledger-page .budget-detail-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+#ledger-page .budget-search-wrap {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 180px;
+  padding: 0 12px;
+  border: 1px solid rgba(255,255,255,0.92);
+  border-radius: 12px;
+  color: #b2758e;
+  background: rgba(255,255,255,0.62);
+  box-shadow: 0 7px 18px rgba(97,66,58,0.055);
+}
+
+#ledger-page .budget-search-wrap input {
+  width: 100%;
+  padding: 9px 8px;
+  border: 0;
+  outline: 0;
+  color: #55413c;
+  font: inherit;
+  font-size: 0.76rem;
+  background: transparent;
+}
+
+#ledger-page .budget-tool-btn {
+  padding: 9px 12px;
+  border: 1px solid rgba(221,121,163,0.2);
+  border-radius: 12px;
+  color: #a9567e;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: rgba(255,255,255,0.62);
+}
+
+#ledger-page .budget-tool-btn:hover {
+  background: rgba(255,255,255,0.94);
+  box-shadow: 0 7px 18px rgba(97,66,58,0.08);
+}
+
 #ledger-page .ledger-month-summary {
   position: relative;
   overflow: hidden;
@@ -3239,6 +3287,69 @@ body::before {
   background-clip: text;
 }
 
+#ledger-page .lms-budget {
+  margin: 12px 0 14px;
+  padding: 11px 12px;
+  border: 1px solid rgba(255,255,255,0.82);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.48);
+}
+
+#ledger-page .lms-budget-head,
+#ledger-page .lms-budget-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: rgba(76,59,55,0.58);
+  font-size: 0.65rem;
+}
+
+#ledger-page .lms-budget-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#ledger-page .lms-budget-input-wrap input {
+  width: 110px;
+  padding: 5px 7px;
+  border: 1px solid rgba(148,99,87,0.1);
+  border-radius: 8px;
+  outline: 0;
+  color: #55413c;
+  text-align: right;
+  background: rgba(255,255,255,0.72);
+}
+
+#ledger-page .lms-budget-track {
+  height: 8px;
+  margin: 9px 0 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(120,84,73,0.08);
+}
+
+#ledger-page .lms-budget-fill {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #66b89f, #e5a06e);
+  transition: width 0.22s ease;
+}
+
+#ledger-page .lms-budget-fill.over {
+  background: linear-gradient(90deg, #e2917f, #d95f7f);
+}
+
+#ledger-page .lms-budget-meta strong {
+  color: #4f927e;
+}
+
+#ledger-page .lms-budget-meta strong.over {
+  color: #ce6271;
+}
+
 #ledger-page .lms-cats-title {
   color: rgba(76,59,55,0.62);
   text-transform: uppercase;
@@ -3263,6 +3374,7 @@ body::before {
 }
 
 #ledger-page .ledger-detail-headers {
+  grid-template-columns: 52px minmax(116px,1.1fr) minmax(100px,1.25fr) minmax(96px,1fr) minmax(82px,.82fr) minmax(132px,1.05fr) 28px;
   padding: 0 7px;
   margin-bottom: 7px;
 }
@@ -3287,6 +3399,7 @@ body::before {
 }
 
 #ledger-page .ledger-detail-row {
+  grid-template-columns: 52px minmax(116px,1.1fr) minmax(100px,1.25fr) minmax(96px,1fr) minmax(82px,.82fr) minmax(132px,1.05fr) 28px;
   min-height: 48px;
   padding: 7px;
   border: 1px solid rgba(255,255,255,0.9);
@@ -3295,6 +3408,38 @@ body::before {
   background: rgba(255,255,255,0.58);
   box-shadow: 0 7px 18px rgba(91,61,52,0.055);
   transition: transform 0.16s, background 0.16s, box-shadow 0.16s;
+}
+
+#ledger-page .ledger-row-options {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+#ledger-page .ledger-payment-select {
+  min-width: 0;
+  flex: 1;
+}
+
+#ledger-page .ledger-recurring-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #9a746a;
+  font-size: 0.6rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+#ledger-page .ledger-recurring-toggle input {
+  accent-color: #d977a2;
+}
+
+#ledger-page .ledger-cell-memo {
+  grid-column: 2 / -1;
+  color: rgba(85,65,60,0.76) !important;
+  background: rgba(255,255,255,0.35);
 }
 
 #ledger-page .ledger-detail-row.is-editable:hover,
@@ -3335,9 +3480,15 @@ body::before {
   box-shadow: 0 0 0 3px rgba(225,132,171,0.13);
 }
 
-#ledger-page .ledger-detail-panel > .ledger-add-row {
-  min-width: 150px;
+#ledger-page .ledger-add-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
   margin: 12px auto 5px;
+}
+
+#ledger-page .ledger-add-actions .ledger-add-row {
+  min-width: 150px;
   padding: 9px 16px;
   border: 1px dashed rgba(211,105,151,0.35);
   border-radius: 12px;
@@ -3345,7 +3496,12 @@ body::before {
   background: rgba(255,255,255,0.6);
 }
 
-#ledger-page .ledger-detail-panel > .ledger-add-row:hover {
+#ledger-page .ledger-add-actions .ledger-add-row.income {
+  border-color: rgba(79,165,140,0.28);
+  color: #418d78;
+}
+
+#ledger-page .ledger-add-actions .ledger-add-row:hover {
   color: #9d4772;
   background: rgba(255,255,255,0.92);
   box-shadow: 0 8px 20px rgba(177,83,126,0.1);
@@ -3461,6 +3617,14 @@ body::before {
     border-radius: 20px;
   }
 
+  #ledger-page .budget-detail-tools {
+    flex-wrap: wrap;
+  }
+
+  #ledger-page .budget-search-wrap {
+    flex-basis: 100%;
+  }
+
   #ledger-page .ledger-month-summary {
     padding: 12px;
   }
@@ -3480,11 +3644,11 @@ body::before {
   }
 
   #ledger-page .ledger-detail-row {
-    min-width: 670px;
+    min-width: 820px;
   }
 
   #ledger-page .ledger-detail-headers {
-    min-width: 670px;
+    min-width: 820px;
   }
 
   #ledger-page .ledger-detail-panel {

@@ -3,7 +3,7 @@
    Full edit + filters + income/expense + monthly summary
    ═══════════════════════════════════════════════════════════ */
 
-import { state } from './state.js';
+import { state, saveEntries } from './state.js';
 import { $, $$ } from './dom.js';
 import { escapeHTML, navigateTo, showToast } from './utils.js';
 import {
@@ -29,9 +29,11 @@ const filters = {
   dateFrom: '',
   dateTo: '',
   categories: [],
-  contentSort: '',
+  query: '',
   priceSort: '',
 };
+
+const PAYMENT_METHODS = ['현금', '체크카드', '신용카드', '계좌이체'];
 
 let allItems = [];
 let currentWidget = null;
@@ -55,6 +57,11 @@ function formatDisplayDate(iso) {
 
 function monthKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function currentMonthBudget() {
+  if (!currentWidget) return 0;
+  return Number(currentWidget.monthlyBudgets?.[monthKey(summaryCursor)]) || 0;
 }
 
 function closePopovers() {
@@ -84,15 +91,15 @@ function getFilteredSortedItems() {
     const set = new Set(filters.categories);
     list = list.filter((i) => set.has(i.category));
   }
+  if (filters.query) {
+    const q = filters.query.toLocaleLowerCase('ko');
+    list = list.filter((i) =>
+      [i.content, i.category, i.memo, i.paymentMethod]
+        .some((v) => String(v || '').toLocaleLowerCase('ko').includes(q))
+    );
+  }
 
-  const collator = new Intl.Collator('ko', { sensitivity: 'base', numeric: true });
-
-  if (filters.contentSort) {
-    list.sort((a, b) => {
-      const r = collator.compare(a.content || '', b.content || '');
-      return filters.contentSort === 'desc' ? -r : r;
-    });
-  } else if (filters.priceSort) {
+  if (filters.priceSort) {
     list.sort((a, b) => {
       const r = (Number(a.price) || 0) - (Number(b.price) || 0);
       return filters.priceSort === 'desc' ? -r : r;
@@ -100,8 +107,8 @@ function getFilteredSortedItems() {
   } else {
     list.sort(
       (a, b) =>
-        String(a.date || '').localeCompare(String(b.date || '')) ||
-        (a.createdAt || '').localeCompare(b.createdAt || '')
+        String(b.date || '').localeCompare(String(a.date || '')) ||
+        String(b.createdAt || '').localeCompare(String(a.createdAt || ''))
     );
   }
 
@@ -126,20 +133,19 @@ function renderActiveFilterChips() {
       );
     });
   }
-  if (filters.contentSort === 'asc') chips.push('<span class="ld-chip">내용 가나다순</span>');
-  if (filters.contentSort === 'desc') chips.push('<span class="ld-chip">내용 가나다 역순</span>');
-  if (filters.priceSort === 'asc') chips.push('<span class="ld-chip">가격 낮은순</span>');
-  if (filters.priceSort === 'desc') chips.push('<span class="ld-chip">가격 높은순</span>');
+  if (filters.query) chips.push(`<span class="ld-chip">검색 “${escapeHTML(filters.query)}”</span>`);
+  if (filters.priceSort === 'asc') chips.push('<span class="ld-chip">금액 낮은순</span>');
+  if (filters.priceSort === 'desc') chips.push('<span class="ld-chip">금액 높은순</span>');
 
   el.innerHTML = chips.length
     ? chips.join('')
     : '<span class="ld-chip-hint">헤더로 필터·정렬 · 행에서 수입/지출·항목을 편집할 수 있어요</span>';
+  $('#ledger-clear-filters')?.classList.toggle('hidden', chips.length === 0);
 
   $$('.ledger-filter-btn').forEach((btn) => {
     const key = btn.dataset.filter;
     let on = false;
     if (key === 'date') on = !!(filters.dateFrom || filters.dateTo);
-    if (key === 'content') on = !!filters.contentSort;
     if (key === 'category') on = filters.categories.length > 0;
     if (key === 'price') on = !!filters.priceSort;
     btn.classList.toggle('is-active', on);
@@ -179,6 +185,25 @@ function renderMonthSummary() {
   if (balanceEl) {
     balanceEl.textContent = formatWon(balance);
     balanceEl.classList.toggle('negative', balance < 0);
+  }
+
+  const budget = currentMonthBudget();
+  const budgetInput = $('#lms-budget-input');
+  const budgetFill = $('#lms-budget-fill');
+  const budgetUsed = $('#lms-budget-used');
+  const budgetRemaining = $('#lms-budget-remaining');
+  if (budgetInput && document.activeElement !== budgetInput) budgetInput.value = budget || '';
+  const usedPct = budget > 0 ? Math.round((expense / budget) * 100) : 0;
+  if (budgetFill) {
+    budgetFill.style.width = `${Math.min(100, usedPct)}%`;
+    budgetFill.classList.toggle('over', usedPct > 100);
+  }
+  if (budgetUsed) budgetUsed.textContent = budget > 0 ? `사용률 ${usedPct}%` : '사용률 0%';
+  if (budgetRemaining) {
+    budgetRemaining.textContent = budget > 0
+      ? (budget >= expense ? `${formatWon(budget - expense)} 남음` : `${formatWon(expense - budget)} 초과`)
+      : '예산을 입력해주세요';
+    budgetRemaining.classList.toggle('over', budget > 0 && expense > budget);
   }
 
   const catsEl = $('#lms-cats');
@@ -231,6 +256,9 @@ async function persistRow(row, itemId) {
     category: row._catApi?.getValue() || '',
     price: Number(row.querySelector('[data-field="price"]').value) || 0,
     kind: row.dataset.kind === 'income' ? 'income' : 'expense',
+    paymentMethod: row.querySelector('[data-field="paymentMethod"]')?.value || '',
+    memo: row.querySelector('[data-field="memo"]')?.value || '',
+    recurring: Boolean(row.querySelector('[data-field="recurring"]')?.checked),
   };
   if (payload.category) rememberCategory(payload.category);
   try {
@@ -248,6 +276,11 @@ async function persistRow(row, itemId) {
 
 function buildEditableRow(item) {
   const kind = itemKind(item);
+  const paymentOptions = ['<option value="">결제수단</option>']
+    .concat(PAYMENT_METHODS.map((name) =>
+      `<option value="${name}" ${item.paymentMethod === name ? 'selected' : ''}>${name}</option>`
+    ))
+    .join('');
   const row = document.createElement('div');
   row.className = `ledger-detail-row is-editable kind-${kind}`;
   row.dataset.itemId = item.id;
@@ -258,13 +291,21 @@ function buildEditableRow(item) {
     <input class="ledger-cell ledger-cell-content" type="text" data-field="content" placeholder="내용 입력" value="${escapeHTML(item.content || '')}" />
     <div class="ledger-cell-category" data-field="category-wrap"></div>
     <input class="ledger-cell ledger-cell-price" type="number" data-field="price" min="0" step="1" placeholder="0" value="${item.price ?? 0}" />
+    <div class="ledger-row-options">
+      <select class="ledger-cell ledger-payment-select" data-field="paymentMethod">${paymentOptions}</select>
+      <label class="ledger-recurring-toggle" title="매월 반복">
+        <input type="checkbox" data-field="recurring" ${item.recurring ? 'checked' : ''} />
+        <span>반복</span>
+      </label>
+    </div>
     <button type="button" class="ledger-row-delete" title="삭제">×</button>
+    <input class="ledger-cell ledger-cell-memo" type="text" data-field="memo" placeholder="메모 (선택)" value="${escapeHTML(item.memo || '')}" />
   `;
 
   const catWrap = row.querySelector('[data-field="category-wrap"]');
   row._catApi = mountCategorySelect(catWrap, item.category || '', () => persistRow(row, item.id), DETAIL_MENU_ID);
 
-  row.querySelectorAll('.ledger-cell').forEach((input) => {
+  row.querySelectorAll('.ledger-cell, [data-field="recurring"]').forEach((input) => {
     input.addEventListener('change', () => persistRow(row, item.id));
   });
 
@@ -281,6 +322,7 @@ function buildEditableRow(item) {
   row.querySelector('.ledger-row-delete').addEventListener('click', async (e) => {
     e.stopPropagation();
     if (!currentWidget) return;
+    if (!window.confirm('이 거래 항목을 삭제할까요?')) return;
     try {
       const data = await deleteLedgerItem(diaryId(), currentWidget.id, item.id);
       allItems = data.items;
@@ -324,9 +366,6 @@ function syncPopoverUI() {
   if (from) from.value = filters.dateFrom || '';
   if (to) to.value = filters.dateTo || '';
 
-  $$('[data-content-sort]').forEach((b) => {
-    b.classList.toggle('selected', b.dataset.contentSort === filters.contentSort);
-  });
   $$('[data-price-sort]').forEach((b) => {
     b.classList.toggle('selected', b.dataset.priceSort === filters.priceSort);
   });
@@ -368,8 +407,37 @@ function resetFiltersQuiet() {
   filters.dateFrom = '';
   filters.dateTo = '';
   filters.categories = [];
-  filters.contentSort = '';
+  filters.query = '';
   filters.priceSort = '';
+  const search = $('#ledger-search');
+  if (search) search.value = '';
+}
+
+async function materializeRecurringForCurrentMonth(items) {
+  if (!currentWidget || !diaryId()) return items;
+  const target = monthKey(new Date());
+  const roots = items.filter((i) => i.recurring && !i.recurringSourceId && String(i.date || '').slice(0, 7) < target);
+  let next = items;
+  for (const root of roots) {
+    const alreadyExists = next.some((i) =>
+      i.recurringSourceId === root.id && String(i.date || '').startsWith(target)
+    );
+    if (alreadyExists) continue;
+    const day = Math.min(Number(String(root.date || '').slice(8, 10)) || 1, 28);
+    const data = await createLedgerItem(diaryId(), currentWidget.id, {
+      date: `${target}-${String(day).padStart(2, '0')}`,
+      content: root.content,
+      category: root.category,
+      price: root.price,
+      kind: root.kind,
+      paymentMethod: root.paymentMethod || '',
+      memo: root.memo || '',
+      recurring: false,
+      recurringSourceId: root.id,
+    });
+    next = data.items || next;
+  }
+  return next;
 }
 
 async function loadItems() {
@@ -377,7 +445,7 @@ async function loadItems() {
   if (!id || !currentWidget) return;
   try {
     const data = await fetchLedgerItems(id, currentWidget.id);
-    allItems = data.items || [];
+    allItems = await materializeRecurringForCurrentMonth(data.items || []);
     allItems.forEach((i) => {
       if (i.category) rememberCategory(i.category);
     });
@@ -389,7 +457,7 @@ async function loadItems() {
   renderDetailRows();
 }
 
-async function addItem() {
+async function addItem(kind = 'expense') {
   const id = diaryId();
   if (!id || !currentWidget) {
     showToast('다이어리를 먼저 저장해주세요');
@@ -401,7 +469,10 @@ async function addItem() {
       content: '',
       category: '',
       price: 0,
-      kind: 'expense',
+      kind: kind === 'income' ? 'income' : 'expense',
+      paymentMethod: '',
+      memo: '',
+      recurring: false,
     });
     allItems = data.items;
     dirty = true;
@@ -430,6 +501,8 @@ export async function openLedgerDetail(widget) {
   summaryCursor = new Date();
   const sub = $('#ledger-detail-sub');
   if (sub) sub.textContent = state.currentDiary?.title || 'Diary';
+  const heading = $('.ledger-detail-heading');
+  if (heading) heading.textContent = widget.budgetName || 'Budget';
   navigateTo('ledger-page');
   await loadItems();
 }
@@ -449,9 +522,55 @@ export function bindLedgerDetailEvents() {
 
   $('#ledger-detail-back')?.addEventListener('click', closeLedgerDetail);
   $('#ledger-clear-filters')?.addEventListener('click', resetFilters);
-  $('#ledger-detail-add')?.addEventListener('click', (e) => {
+  $('#ledger-detail-add-expense')?.addEventListener('click', (e) => {
     e.stopPropagation();
-    addItem();
+    addItem('expense');
+  });
+  $('#ledger-detail-add-income')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    addItem('income');
+  });
+  $('#ledger-search')?.addEventListener('input', (e) => {
+    filters.query = e.target.value.trim();
+    renderDetailRows();
+  });
+  $('#lms-budget-input')?.addEventListener('change', (e) => {
+    if (!currentWidget) return;
+    if (!currentWidget.monthlyBudgets) currentWidget.monthlyBudgets = {};
+    currentWidget.monthlyBudgets[monthKey(summaryCursor)] = Math.max(0, Number(e.target.value) || 0);
+    saveEntries();
+    dirty = true;
+    renderMonthSummary();
+    rerenderPlacedWidgets();
+  });
+  $('#ledger-rename')?.addEventListener('click', () => {
+    if (!currentWidget) return;
+    const next = window.prompt('Budget 이름을 입력하세요', currentWidget.budgetName || 'Budget');
+    if (next === null) return;
+    currentWidget.budgetName = next.trim() || 'Budget';
+    saveEntries();
+    dirty = true;
+    const heading = $('.ledger-detail-heading');
+    if (heading) heading.textContent = currentWidget.budgetName;
+    rerenderPlacedWidgets();
+  });
+  $('#ledger-export')?.addEventListener('click', () => {
+    const rows = getFilteredSortedItems();
+    const csvCell = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`;
+    const header = ['구분', '날짜', '내용', '카테고리', '금액', '결제수단', '메모', '반복'];
+    const body = rows.map((i) => [
+      itemKind(i) === 'income' ? '수입' : '지출',
+      i.date, i.content, i.category, i.price, i.paymentMethod, i.memo, i.recurring ? '매월' : '',
+    ].map(csvCell).join(','));
+    const blob = new Blob(['\uFEFF' + [header.map(csvCell).join(','), ...body].join('\n')], {
+      type: 'text/csv;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${currentWidget?.budgetName || 'budget'}-${monthKey(summaryCursor)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   });
 
   $('#lms-prev')?.addEventListener('click', () => {
@@ -496,19 +615,9 @@ export function bindLedgerDetailEvents() {
     renderDetailRows();
   });
 
-  $$('[data-content-sort]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      filters.contentSort = btn.dataset.contentSort || '';
-      if (filters.contentSort) filters.priceSort = '';
-      closePopovers();
-      renderDetailRows();
-    });
-  });
-
   $$('[data-price-sort]').forEach((btn) => {
     btn.addEventListener('click', () => {
       filters.priceSort = btn.dataset.priceSort || '';
-      if (filters.priceSort) filters.contentSort = '';
       closePopovers();
       renderDetailRows();
     });

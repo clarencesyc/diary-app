@@ -313,6 +313,15 @@
 
     <div class="ledger-detail-body">
       <div class="ledger-detail-panel glass-panel">
+        <div class="budget-detail-tools">
+          <label class="budget-search-wrap">
+            <span aria-hidden="true">⌕</span>
+            <input type="search" id="ledger-search" placeholder="거래 내용 검색" autocomplete="off" />
+          </label>
+          <button type="button" class="budget-tool-btn" id="ledger-rename">이름 변경</button>
+          <button type="button" class="budget-tool-btn" id="ledger-export">CSV 내보내기</button>
+        </div>
+
         <section class="ledger-month-summary" id="ledger-month-summary">
           <div class="lms-header">
             <button type="button" class="lms-nav" id="lms-prev" aria-label="이전 달">‹</button>
@@ -333,6 +342,20 @@
               <span class="lms-stat-value balance" id="lms-balance">0원</span>
             </div>
           </div>
+          <div class="lms-budget">
+            <div class="lms-budget-head">
+              <label for="lms-budget-input">이번 달 예산</label>
+              <div class="lms-budget-input-wrap">
+                <input type="number" id="lms-budget-input" min="0" step="1000" placeholder="0" />
+                <span>원</span>
+              </div>
+            </div>
+            <div class="lms-budget-track"><div class="lms-budget-fill" id="lms-budget-fill"></div></div>
+            <div class="lms-budget-meta">
+              <span id="lms-budget-used">사용률 0%</span>
+              <strong id="lms-budget-remaining">예산을 입력해주세요</strong>
+            </div>
+          </div>
           <div class="lms-cats-title">카테고리별 지출</div>
           <div class="lms-cats" id="lms-cats"></div>
         </section>
@@ -342,21 +365,27 @@
         <div class="ledger-detail-headers">
           <div class="ledger-h-spacer ledger-h-kind-spacer"></div>
           <button type="button" class="ledger-h ledger-h-date ledger-filter-btn" data-filter="date">날짜 ▾</button>
-          <button type="button" class="ledger-h ledger-h-content ledger-filter-btn" data-filter="content">내용 ▾</button>
+          <div class="ledger-h ledger-h-content">내용</div>
           <button type="button" class="ledger-h ledger-h-category ledger-filter-btn" data-filter="category">카테고리 ▾</button>
-          <button type="button" class="ledger-h ledger-h-price ledger-filter-btn" data-filter="price">가격 ▾</button>
+          <button type="button" class="ledger-h ledger-h-price ledger-filter-btn" data-filter="price">금액 ▾</button>
+          <div class="ledger-h ledger-h-payment">결제 · 반복</div>
           <div class="ledger-h-spacer"></div>
         </div>
 
         <div class="ledger-detail-rows" id="ledger-detail-rows"></div>
 
-        <button type="button" class="ledger-add-row" id="ledger-detail-add" title="항목 추가">
-          <span>+</span> 항목 추가
-        </button>
+        <div class="ledger-add-actions">
+          <button type="button" class="ledger-add-row expense" id="ledger-detail-add-expense" title="지출 추가">
+            <span>−</span> 지출 추가
+          </button>
+          <button type="button" class="ledger-add-row income" id="ledger-detail-add-income" title="수입 추가">
+            <span>+</span> 수입 추가
+          </button>
+        </div>
 
         <div class="ledger-footer ledger-detail-footer ledger-detail-totals">
           <div class="ld-total-row">
-            <span class="ledger-total-label">지출 <span class="ledger-detail-count" id="ledger-detail-count"></span></span>
+            <span class="ledger-total-label">검색·필터 결과 지출 <span class="ledger-detail-count" id="ledger-detail-count"></span></span>
             <span class="ledger-total-value expense" id="ledger-detail-expense">0원</span>
           </div>
           <div class="ld-total-row">
@@ -388,13 +417,6 @@
       </div>
     </div>
 
-    <div class="ledger-popover hidden" id="ledger-pop-content">
-      <div class="ledger-pop-title">내용 정렬</div>
-      <button type="button" class="ledger-pop-option" data-content-sort="asc">가나다순</button>
-      <button type="button" class="ledger-pop-option" data-content-sort="desc">가나다 역순</button>
-      <button type="button" class="ledger-pop-option muted" data-content-sort="">정렬 해제</button>
-    </div>
-
     <div class="ledger-popover hidden" id="ledger-pop-category">
       <div class="ledger-pop-title">카테고리 필터</div>
       <div class="ledger-pop-cats" id="ledger-pop-cats"></div>
@@ -405,9 +427,9 @@
     </div>
 
     <div class="ledger-popover hidden" id="ledger-pop-price">
-      <div class="ledger-pop-title">가격 정렬</div>
-      <button type="button" class="ledger-pop-option" data-price-sort="desc">가격 높은순</button>
-      <button type="button" class="ledger-pop-option" data-price-sort="asc">가격 낮은순</button>
+      <div class="ledger-pop-title">금액 정렬</div>
+      <button type="button" class="ledger-pop-option" data-price-sort="desc">금액 높은순</button>
+      <button type="button" class="ledger-pop-option" data-price-sort="asc">금액 낮은순</button>
       <button type="button" class="ledger-pop-option muted" data-price-sort="">정렬 해제</button>
     </div>
   </div>

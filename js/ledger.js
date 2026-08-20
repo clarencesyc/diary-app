@@ -21,6 +21,11 @@ const CAT_COLORS = [
   { bg: 'rgba(244, 63, 94, 0.16)', text: '#be123c' },
 ];
 
+const DEFAULT_CATEGORIES = [
+  '식비', '교통', '쇼핑', '주거·공과금', '여가',
+  '의료', '교육', '급여', '용돈', '기타',
+];
+
 export function formatWon(n) {
   const num = Number(n) || 0;
   const abs = Math.abs(num).toLocaleString('ko-KR');
@@ -57,9 +62,10 @@ function catStorageKey() {
 
 export function loadCategories() {
   try {
-    return JSON.parse(localStorage.getItem(catStorageKey()) || '[]');
+    const saved = JSON.parse(localStorage.getItem(catStorageKey()) || '[]');
+    return [...new Set([...DEFAULT_CATEGORIES, ...(Array.isArray(saved) ? saved : [])])];
   } catch {
-    return [];
+    return [...DEFAULT_CATEGORIES];
   }
 }
 
@@ -252,7 +258,7 @@ export function mountLedgerWidget(container, widget) {
         <button type="button" class="ledger-title" data-open-ledger-detail title="상세 가계부 보기">
           <span class="ledger-title-mark">₩</span>
           <span class="ledger-title-copy">
-            <strong>Budget</strong>
+            <strong>${escapeHTML(widget.budgetName || 'Budget')}</strong>
             <small>My daily balance</small>
           </span>
           <span class="ledger-title-arrow">›</span>
@@ -262,7 +268,7 @@ export function mountLedgerWidget(container, widget) {
         <div class="ledger-h ledger-h-date">날짜</div>
         <div class="ledger-h ledger-h-content">내용</div>
         <div class="ledger-h ledger-h-category">카테고리</div>
-        <div class="ledger-h ledger-h-price">가격</div>
+        <div class="ledger-h ledger-h-price">금액</div>
         <div class="ledger-h-spacer"></div>
       </div>
       <div class="ledger-body">

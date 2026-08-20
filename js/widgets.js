@@ -255,6 +255,10 @@ export function renderPlacedWidget(w) {
 /* ── Remove Widget ───────────────────────────────────── */
 export function removeWidget(widgetId) {
   const removed = state.widgets.find((w) => w.id === widgetId);
+  if (removed?.type === 'ledger') {
+    const name = removed.budgetName || 'Budget';
+    if (!window.confirm(`“${name}” 위젯과 저장된 모든 거래를 삭제할까요?`)) return;
+  }
   freeCells(widgetId);
 
   state.widgets = state.widgets.filter((w) => w.id !== widgetId);

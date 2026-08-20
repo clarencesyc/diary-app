@@ -69,6 +69,10 @@ module.exports = {
       category: String(payload.category || '').trim(),
       price: Number(payload.price) || 0,
       kind: normalizeKind(payload.kind),
+      paymentMethod: String(payload.paymentMethod || '').trim(),
+      memo: String(payload.memo || '').trim(),
+      recurring: Boolean(payload.recurring),
+      recurringSourceId: payload.recurringSourceId ? String(payload.recurringSourceId) : null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -92,6 +96,14 @@ module.exports = {
       category: payload.category !== undefined ? String(payload.category).trim() : prev.category,
       price: payload.price !== undefined ? Number(payload.price) || 0 : prev.price,
       kind: payload.kind !== undefined ? normalizeKind(payload.kind) : normalizeKind(prev.kind),
+      paymentMethod:
+        payload.paymentMethod !== undefined ? String(payload.paymentMethod).trim() : (prev.paymentMethod || ''),
+      memo: payload.memo !== undefined ? String(payload.memo).trim() : (prev.memo || ''),
+      recurring: payload.recurring !== undefined ? Boolean(payload.recurring) : Boolean(prev.recurring),
+      recurringSourceId:
+        payload.recurringSourceId !== undefined
+          ? (payload.recurringSourceId ? String(payload.recurringSourceId) : null)
+          : (prev.recurringSourceId || null),
       updatedAt: new Date().toISOString(),
     };
     writeAll(items);
