@@ -249,7 +249,14 @@ export function mountLedgerWidget(container, widget) {
     <button class="widget-delete" title="Remove widget">✕</button>
     <div class="ledger-sheet">
       <div class="ledger-title-row">
-        <button type="button" class="ledger-title" data-open-ledger-detail title="상세 가계부 보기">Budget</button>
+        <button type="button" class="ledger-title" data-open-ledger-detail title="상세 가계부 보기">
+          <span class="ledger-title-mark">₩</span>
+          <span class="ledger-title-copy">
+            <strong>Budget</strong>
+            <small>My daily balance</small>
+          </span>
+          <span class="ledger-title-arrow">›</span>
+        </button>
       </div>
       <div class="ledger-headers">
         <div class="ledger-h ledger-h-date">날짜</div>
@@ -265,7 +272,7 @@ export function mountLedgerWidget(container, widget) {
         </button>
       </div>
       <div class="ledger-footer">
-        <span class="ledger-total-label">합계</span>
+        <span class="ledger-total-label">Balance</span>
         <span class="ledger-total-value" data-ledger-total>0원</span>
       </div>
     </div>

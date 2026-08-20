@@ -38,14 +38,19 @@ export function buildLedgerSizeCarousel() {
   state.ledgerSizes.forEach((size) => {
     const card = document.createElement('div');
     card.className = 'size-card ledger-size-card';
+    card.dataset.previewCols = String(size.cols);
+    card.dataset.previewRows = String(size.rows);
     card.innerHTML = `
-      <div class="ledger-size-preview" aria-hidden="true">
-        <div class="lsp-h lsp-date"></div>
-        <div class="lsp-h lsp-content"></div>
-        <div class="lsp-h lsp-cat"></div>
-        <div class="lsp-h lsp-price"></div>
-        <div class="lsp-lines"></div>
-        <div class="lsp-foot"><span>합계</span><span>0원</span></div>
+      <div class="ledger-preview-stage" aria-hidden="true">
+        <div class="ledger-size-preview" style="--preview-cols:${size.cols}; --preview-rows:${size.rows};">
+          <div class="lsp-title"><span class="lsp-mark">₩</span><span>Budget</span></div>
+          <div class="lsp-h lsp-date"></div>
+          <div class="lsp-h lsp-content"></div>
+          <div class="lsp-h lsp-cat"></div>
+          <div class="lsp-h lsp-price"></div>
+          <div class="lsp-lines"></div>
+          <div class="lsp-foot"><span>Balance</span><span>0원</span></div>
+        </div>
       </div>
       <div class="size-label">${size.label}</div>
       <div class="size-dims">${size.subtitle}</div>
