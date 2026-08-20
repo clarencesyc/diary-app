@@ -2968,6 +2968,50 @@ body::before {
   display: block;
 }
 
+/* Keep the Budget picker compact enough to fit without scrolling. */
+#tab-ledger .tab-desc {
+  margin-bottom: 10px;
+}
+
+#tab-ledger .size-carousel {
+  margin-bottom: 8px;
+}
+
+#tab-ledger .size-card {
+  padding: 8px 16px;
+  gap: 6px;
+}
+
+#tab-ledger .ledger-size-preview {
+  width: min(100%, 420px);
+  height: 160px;
+  aspect-ratio: auto;
+  margin-bottom: 2px;
+  padding: 8px;
+}
+
+#tab-ledger .ledger-size-preview .lsp-lines {
+  min-height: 70px;
+}
+
+#tab-ledger .carousel-dots {
+  margin-bottom: 10px;
+}
+
+#tab-ledger #btn-choose-ledger {
+  min-height: 42px;
+}
+
+@media (max-height: 700px) {
+  #tab-ledger .ledger-size-preview {
+    height: 120px;
+  }
+
+  #tab-ledger .size-card {
+    padding-block: 4px;
+  }
+}
+
 
 /* ═══════════════════════════════════════════════════════════
    CONFIRM DIALOG
