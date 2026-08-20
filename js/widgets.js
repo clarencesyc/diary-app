@@ -96,6 +96,8 @@ export function renderPlacedWidget(w) {
 
   if (w.type === 'ledger') {
     el.classList.add('placed-widget-ledger');
+    el.dataset.widgetCols = String(w.cols);
+    el.dataset.widgetRows = String(w.rows);
     mountLedgerWidget(el, w);
   } else if (w.type === 'todo') {
     el.classList.add('placed-widget--todo');
@@ -231,8 +233,10 @@ export function renderPlacedWidget(w) {
     document.addEventListener('touchend', endResize);
   };
   
-  handle.addEventListener('mousedown', startResize);
-  handle.addEventListener('touchstart', startResize, { passive: false });
+  if (handle) {
+    handle.addEventListener('mousedown', startResize);
+    handle.addEventListener('touchstart', startResize, { passive: false });
+  }
 
   // Entrance animation
   el.style.opacity = '0';

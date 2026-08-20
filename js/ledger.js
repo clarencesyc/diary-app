@@ -249,7 +249,7 @@ export function mountLedgerWidget(container, widget) {
     <button class="widget-delete" title="Remove widget">✕</button>
     <div class="ledger-sheet">
       <div class="ledger-title-row">
-        <button type="button" class="ledger-title" data-open-ledger-detail title="상세 가계부 보기">가계부</button>
+        <button type="button" class="ledger-title" data-open-ledger-detail title="상세 가계부 보기">Budget</button>
       </div>
       <div class="ledger-headers">
         <div class="ledger-h ledger-h-date">날짜</div>

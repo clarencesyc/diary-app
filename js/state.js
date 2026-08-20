@@ -58,9 +58,9 @@ export const state = {
   todoCarouselIndex: 0,
   ledgerCarouselIndex: 0,
   ledgerSizes: [
-    { label: '6×4', subtitle: 'Compact Ledger', cols: 6, rows: 4 },
-    { label: '8×5', subtitle: 'Standard Ledger', cols: 8, rows: 5 },
-    { label: '10×6', subtitle: 'Full Ledger', cols: 10, rows: 6 },
+    { label: '2×2', subtitle: 'Budget — Small', cols: 2, rows: 2 },
+    { label: '2×4', subtitle: 'Budget — Tall', cols: 2, rows: 4 },
+    { label: '4×4', subtitle: 'Budget — Large', cols: 4, rows: 4 },
   ],
   widgetSizes: [
     { label: '2×2', subtitle: 'Square — Small', cols: 2, rows: 2 },
