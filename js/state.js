@@ -33,6 +33,7 @@ export const state = {
   storedPages: JSON.parse(localStorage.getItem('memento_stored_pages') || '[]'),
   currentFolderId: null, // Tracks which folder we are currently viewing (null = root)
   currentDiary: null,
+  currentPage: null,
   calendarDate: new Date(),
   sortAsc: true,
 
@@ -55,6 +56,12 @@ export const state = {
   // Carousel
   carouselIndex: 0,
   todoCarouselIndex: 0,
+  ledgerCarouselIndex: 0,
+  ledgerSizes: [
+    { label: '6×4', subtitle: 'Compact Ledger', cols: 6, rows: 4 },
+    { label: '8×5', subtitle: 'Standard Ledger', cols: 8, rows: 5 },
+    { label: '10×6', subtitle: 'Full Ledger', cols: 10, rows: 6 },
+  ],
   widgetSizes: [
     { label: '2×2', subtitle: 'Square — Small', cols: 2, rows: 2 },
     { label: '2×3', subtitle: 'Vertical — Small', cols: 2, rows: 3 },

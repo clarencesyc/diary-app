@@ -13,18 +13,84 @@ export function openDrawer() {
   dom.drawerOverlay.classList.remove('hidden');
   requestAnimationFrame(() => dom.drawerOverlay.classList.add('active'));
 
-  // Activate Gallery tab by default
-  $$('.drawer-tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === 'gallery'));
+  // Ledger is the first widget option.
+  $$('.drawer-tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === 'ledger'));
   $$('.tab-content').forEach((c) => c.classList.add('hidden'));
-  $('#tab-gallery').classList.remove('hidden');
+  $('#tab-ledger').classList.remove('hidden');
 
   state.carouselIndex = 0;
+  state.ledgerCarouselIndex = 0;
   updateCarousel();
+  updateLedgerCarousel();
 }
 
 export function closeDrawer() {
   dom.drawerOverlay.classList.remove('active');
   setTimeout(() => dom.drawerOverlay.classList.add('hidden'), 450);
+}
+
+/* ── Ledger Widget Flow ──────────────────────────────── */
+export function buildLedgerSizeCarousel() {
+  const viewport = $('#ledger-carousel-viewport');
+  if (!viewport) return;
+  viewport.innerHTML = '';
+
+  state.ledgerSizes.forEach((size) => {
+    const card = document.createElement('div');
+    card.className = 'size-card ledger-size-card';
+    card.innerHTML = `
+      <div class="ledger-size-preview" aria-hidden="true">
+        <div class="lsp-h lsp-date"></div>
+        <div class="lsp-h lsp-content"></div>
+        <div class="lsp-h lsp-cat"></div>
+        <div class="lsp-h lsp-price"></div>
+        <div class="lsp-lines"></div>
+        <div class="lsp-foot"><span>합계</span><span>0원</span></div>
+      </div>
+      <div class="size-label">${size.label}</div>
+      <div class="size-dims">${size.subtitle}</div>
+    `;
+    viewport.appendChild(card);
+  });
+
+  const dots = $('#ledger-carousel-dots');
+  if (dots) {
+    dots.innerHTML = '';
+    state.ledgerSizes.forEach((_, i) => {
+      const dot = document.createElement('button');
+      dot.className = 'carousel-dot';
+      dot.classList.toggle('active', i === state.ledgerCarouselIndex);
+      dot.addEventListener('click', () => {
+        state.ledgerCarouselIndex = i;
+        updateLedgerCarousel();
+      });
+      dots.appendChild(dot);
+    });
+  }
+  updateLedgerCarousel();
+}
+
+export function navigateLedgerCarousel(dir) {
+  const max = state.ledgerSizes.length - 1;
+  state.ledgerCarouselIndex = Math.max(0, Math.min(max, state.ledgerCarouselIndex + dir));
+  updateLedgerCarousel();
+}
+
+function updateLedgerCarousel() {
+  const viewport = $('#ledger-carousel-viewport');
+  if (!viewport) return;
+  viewport.querySelectorAll('.size-card').forEach((card) => {
+    card.style.transform = `translateX(-${state.ledgerCarouselIndex * 100}%)`;
+  });
+  $('#ledger-carousel-dots')?.querySelectorAll('.carousel-dot').forEach((dot, i) => {
+    dot.classList.toggle('active', i === state.ledgerCarouselIndex);
+  });
+}
+
+export function onChooseLedgerSize() {
+  const size = state.ledgerSizes[state.ledgerCarouselIndex];
+  closeDrawer();
+  setTimeout(() => enterPlacementMode(size, null, 'ledger'), 250);
 }
 
 

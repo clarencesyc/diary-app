@@ -87,7 +87,10 @@ function renderPage(container, pageData, pageIndex) {
     // Bind add widget button
     const addWidgetBtn = container.querySelector('.btn-add-widget-header');
     if (addWidgetBtn) {
-      addWidgetBtn.onclick = () => openDrawer();
+      addWidgetBtn.onclick = () => {
+        activatePageGrid(container, pageData);
+        openDrawer();
+      };
     }
 
     // Bind archive button
@@ -105,16 +108,19 @@ function renderPage(container, pageData, pageIndex) {
     // Initialize Grid for this page (requires setting state for grid engine)
     // Wait for DOM paint
     requestAnimationFrame(() => {
-      // Temporarily set grid container for the engine
-      dom.editorWorkspace = container.querySelector('.page-grid-container');
-      dom.legoGrid = container.querySelector('.page-grid');
-      state.widgets = pageData.widgets || [];
-      
+      activatePageGrid(container, pageData);
       updateGridDimensionsFromContainer();
       buildLegoGrid();
       rerenderPlacedWidgets();
     });
   }
+}
+
+function activatePageGrid(container, pageData) {
+  dom.editorWorkspace = container.querySelector('.page-grid-container');
+  dom.legoGrid = container.querySelector('.page-grid');
+  state.currentPage = pageData;
+  state.widgets = pageData.widgets || (pageData.widgets = []);
 }
 
 function createNewPage(index) {
@@ -264,4 +270,3 @@ function renderOverviewGrid() {
     header.textContent = state.currentDiary.title + ' - Pages';
   }
 }
-

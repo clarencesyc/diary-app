@@ -7,6 +7,13 @@ import { dom } from './dom.js';
 import { showToast } from './utils.js';
 import { checkPlacement, markCellsOccupied, freeCells, clearCellHighlights, buildLegoGrid, reserveMapArea } from './grid.js';
 import { buildTodoWidgetShell, ensureTodoWidgetData, bindTodoWidgetEvents, refreshTodoTabs, openTodoResizeSheet } from './todo.js';
+import { mountLedgerWidget } from './ledger.js';
+import { deleteLedgerWidget } from './api.js';
+
+function syncCurrentPageWidgets() {
+  if (state.currentPage) state.currentPage.widgets = state.widgets;
+  saveEntries();
+}
 
 
 /* ── Place Widget ────────────────────────────────────── */
@@ -28,7 +35,7 @@ export function placeWidget(row, col, wCols, wRows, imageData) {
     col: Number(col),
     cols: Number(wCols),
     rows: Number(wRows),
-    imageData,
+    imageData: type === 'gallery' ? imageData : null,
   };
 
   if (type === 'todo') {
@@ -45,6 +52,7 @@ export function placeWidget(row, col, wCols, wRows, imageData) {
 
   markCellsOccupied(row, col, wCols, wRows, widgetId);
   state.widgets.push(widgetData);
+  syncCurrentPageWidgets();
 
   renderPlacedWidget(widgetData);
 
@@ -56,7 +64,7 @@ export function placeWidget(row, col, wCols, wRows, imageData) {
   }
 
   exitPlacementMode();
-  saveEntries();
+  syncCurrentPageWidgets();
 }
 
 
@@ -70,6 +78,7 @@ export function renderPlacedWidget(w) {
   const el = document.createElement('div');
   el.className = 'placed-widget';
   el.dataset.widgetId = w.id;
+  el.dataset.widgetType = w.type || 'gallery';
 
   const updateVisualSize = () => {
     const left = w.col * cellSize + w.col * gap;
@@ -85,7 +94,10 @@ export function renderPlacedWidget(w) {
   
   updateVisualSize();
 
-  if (w.type === 'todo') {
+  if (w.type === 'ledger') {
+    el.classList.add('placed-widget-ledger');
+    mountLedgerWidget(el, w);
+  } else if (w.type === 'todo') {
     el.classList.add('placed-widget--todo');
     el.dataset.widgetCols = String(w.cols);
     el.dataset.widgetRows = String(w.rows);
@@ -109,7 +121,7 @@ export function renderPlacedWidget(w) {
     `;
   }
 
-  el.querySelector('.widget-delete').addEventListener('click', (e) => {
+  el.querySelector('.widget-delete')?.addEventListener('click', (e) => {
     e.stopPropagation();
     removeWidget(w.id);
   });
@@ -121,7 +133,7 @@ export function renderPlacedWidget(w) {
   const DRAG_CANCEL_PX = 8;
 
   const shouldSkipPressStart = (target) => {
-    if (target.closest('button')) return true;
+    if (target.closest('input, button, .ledger-sheet, .cat-menu')) return true;
     if (w.type === 'todo' && target.closest('.todo-widget-header')) return true;
     return false;
   };
@@ -238,9 +250,11 @@ export function renderPlacedWidget(w) {
 
 /* ── Remove Widget ───────────────────────────────────── */
 export function removeWidget(widgetId) {
+  const removed = state.widgets.find((w) => w.id === widgetId);
   freeCells(widgetId);
 
   state.widgets = state.widgets.filter((w) => w.id !== widgetId);
+  syncCurrentPageWidgets();
 
   const el = dom.legoGrid.querySelector(`.placed-widget[data-widget-id="${widgetId}"]`);
   if (el) {
@@ -251,6 +265,9 @@ export function removeWidget(widgetId) {
   }
 
   showToast('Widget removed');
+  if (removed?.type === 'ledger' && state.currentDiary?.id) {
+    deleteLedgerWidget(state.currentDiary.id, widgetId).catch(() => {});
+  }
 }
 
 
@@ -293,6 +310,7 @@ export function resizeTodoWidget(widgetId, newCols, newRows) {
 export function pickupWidget(w) {
   freeCells(w.id);
   state.widgets = state.widgets.filter((x) => x.id !== w.id);
+  syncCurrentPageWidgets();
   const el = dom.legoGrid.querySelector(`.placed-widget[data-widget-id="${w.id}"]`);
   if (el) el.remove();
 
@@ -342,7 +360,7 @@ export function enterPlacementMode(size, imageData, type) {
   state.placementImage = imageData;
   state.placementType = type;
   dom.placementOverlay.classList.remove('hidden');
-  dom.fabAdd.style.display = 'none';
+  if (dom.fabAdd) dom.fabAdd.style.display = 'none';
 }
 
 export function exitPlacementMode() {
@@ -352,7 +370,7 @@ export function exitPlacementMode() {
   state.placementType = null;
   state.movingWidget = null;
   dom.placementOverlay.classList.add('hidden');
-  dom.fabAdd.style.display = '';
+  if (dom.fabAdd) dom.fabAdd.style.display = '';
   clearCellHighlights();
 }
 

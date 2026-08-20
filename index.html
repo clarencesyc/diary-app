@@ -291,6 +291,123 @@
   </div>
 
 
+  <!--  SCREEN 3 — LEDGER DETAIL                      -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <div id="ledger-page" class="screen">
+    <header class="ledger-detail-header">
+      <button class="btn-icon" id="ledger-detail-back" title="다이어리로 돌아가기">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <path d="M15 18l-6-6 6-6"/>
+        </svg>
+      </button>
+      <div class="ledger-detail-header-center">
+        <h2 class="ledger-detail-heading">가계부</h2>
+        <p class="ledger-detail-sub" id="ledger-detail-sub">상세 보기</p>
+      </div>
+      <button class="btn-secondary ledger-clear-filters" id="ledger-clear-filters" type="button">필터 초기화</button>
+    </header>
+
+    <div class="ledger-detail-body">
+      <div class="ledger-detail-panel glass-panel">
+        <section class="ledger-month-summary" id="ledger-month-summary">
+          <div class="lms-header">
+            <button type="button" class="lms-nav" id="lms-prev" aria-label="이전 달">‹</button>
+            <h3 class="lms-title" id="lms-title">월별 요약</h3>
+            <button type="button" class="lms-nav" id="lms-next" aria-label="다음 달">›</button>
+          </div>
+          <div class="lms-stats">
+            <div class="lms-stat">
+              <span class="lms-stat-label">수입</span>
+              <span class="lms-stat-value income" id="lms-income">0원</span>
+            </div>
+            <div class="lms-stat">
+              <span class="lms-stat-label">지출</span>
+              <span class="lms-stat-value expense" id="lms-expense">0원</span>
+            </div>
+            <div class="lms-stat">
+              <span class="lms-stat-label">잔액</span>
+              <span class="lms-stat-value balance" id="lms-balance">0원</span>
+            </div>
+          </div>
+          <div class="lms-cats-title">카테고리별 지출</div>
+          <div class="lms-cats" id="lms-cats"></div>
+        </section>
+
+        <div class="ledger-detail-active-filters" id="ledger-active-filters"></div>
+
+        <div class="ledger-detail-headers">
+          <div class="ledger-h-spacer ledger-h-kind-spacer"></div>
+          <button type="button" class="ledger-h ledger-h-date ledger-filter-btn" data-filter="date">날짜 ▾</button>
+          <button type="button" class="ledger-h ledger-h-content ledger-filter-btn" data-filter="content">내용 ▾</button>
+          <button type="button" class="ledger-h ledger-h-category ledger-filter-btn" data-filter="category">카테고리 ▾</button>
+          <button type="button" class="ledger-h ledger-h-price ledger-filter-btn" data-filter="price">가격 ▾</button>
+          <div class="ledger-h-spacer"></div>
+        </div>
+
+        <div class="ledger-detail-rows" id="ledger-detail-rows"></div>
+
+        <button type="button" class="ledger-add-row" id="ledger-detail-add" title="항목 추가">
+          <span>+</span> 항목 추가
+        </button>
+
+        <div class="ledger-footer ledger-detail-footer ledger-detail-totals">
+          <div class="ld-total-row">
+            <span class="ledger-total-label">지출 <span class="ledger-detail-count" id="ledger-detail-count"></span></span>
+            <span class="ledger-total-value expense" id="ledger-detail-expense">0원</span>
+          </div>
+          <div class="ld-total-row">
+            <span class="ledger-total-label">수입</span>
+            <span class="ledger-total-value income" id="ledger-detail-income">0원</span>
+          </div>
+          <div class="ld-total-row balance-row">
+            <span class="ledger-total-label">잔액</span>
+            <span class="ledger-total-value" id="ledger-detail-total">0원</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter popovers -->
+    <div class="ledger-popover hidden" id="ledger-pop-date">
+      <div class="ledger-pop-title">기간 선택</div>
+      <label class="ledger-pop-field">
+        <span>시작</span>
+        <input type="date" id="ledger-date-from" />
+      </label>
+      <label class="ledger-pop-field">
+        <span>끝</span>
+        <input type="date" id="ledger-date-to" />
+      </label>
+      <div class="ledger-pop-actions">
+        <button type="button" class="btn-secondary" data-pop-clear="date">해제</button>
+        <button type="button" class="btn-primary" data-pop-apply="date">적용</button>
+      </div>
+    </div>
+
+    <div class="ledger-popover hidden" id="ledger-pop-content">
+      <div class="ledger-pop-title">내용 정렬</div>
+      <button type="button" class="ledger-pop-option" data-content-sort="asc">가나다순</button>
+      <button type="button" class="ledger-pop-option" data-content-sort="desc">가나다 역순</button>
+      <button type="button" class="ledger-pop-option muted" data-content-sort="">정렬 해제</button>
+    </div>
+
+    <div class="ledger-popover hidden" id="ledger-pop-category">
+      <div class="ledger-pop-title">카테고리 필터</div>
+      <div class="ledger-pop-cats" id="ledger-pop-cats"></div>
+      <div class="ledger-pop-actions">
+        <button type="button" class="btn-secondary" data-pop-clear="category">전체</button>
+        <button type="button" class="btn-primary" data-pop-apply="category">적용</button>
+      </div>
+    </div>
+
+    <div class="ledger-popover hidden" id="ledger-pop-price">
+      <div class="ledger-pop-title">가격 정렬</div>
+      <button type="button" class="ledger-pop-option" data-price-sort="desc">가격 높은순</button>
+      <button type="button" class="ledger-pop-option" data-price-sort="asc">가격 낮은순</button>
+      <button type="button" class="ledger-pop-option muted" data-price-sort="">정렬 해제</button>
+    </div>
+  </div>
+
   <!-- ═══════════════════════════════════════════════ -->
   <!--  WIDGET DRAWER (Bottom Sheet)                   -->
   <!-- ═══════════════════════════════════════════════ -->
@@ -313,7 +430,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 12l2 2 4-4"/></svg>
             <span>To-Do</span>
           </button>
-          <button class="drawer-tab active" data-tab="gallery">
+          <button class="drawer-tab" data-tab="gallery">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
             <span>Gallery</span>
           </button>
@@ -324,7 +441,14 @@
           <!-- Ledger Tab -->
           <div class="tab-content hidden" id="tab-ledger">
             <h3>Ledger Widgets</h3>
-            <p class="tab-placeholder">Financial tracking widgets — coming soon</p>
+            <p class="tab-desc">수입과 지출을 기록할 가계부 크기를 선택하세요</p>
+            <div class="size-carousel" id="ledger-size-carousel">
+              <button class="carousel-nav prev" id="ledger-carousel-prev">‹</button>
+              <div class="carousel-viewport" id="ledger-carousel-viewport"></div>
+              <button class="carousel-nav next" id="ledger-carousel-next">›</button>
+            </div>
+            <div class="carousel-dots" id="ledger-carousel-dots"></div>
+            <button class="btn-primary btn-choose-size" id="btn-choose-ledger">가계부 추가</button>
           </div>
           <!-- Memo Tab -->
           <div class="tab-content hidden" id="tab-memo">

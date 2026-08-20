@@ -1,0 +1,12 @@
+{
+  "name": "diary-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Memento diary app with ledger widgets",
+  "scripts": {
+    "install:backend": "npm install --prefix backend",
+    "backend": "npm start --prefix backend",
+    "dev": "npm run dev --prefix backend",
+    "start": "npm start --prefix backend"
+  }
+}

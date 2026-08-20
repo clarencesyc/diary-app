@@ -6,7 +6,7 @@ import { state } from './state.js';
 import { dom, $, $$ } from './dom.js';
 import { renderCalendar } from './calendar.js';
 import { renderEntries, toggleSort, initContextMenu } from './entries.js';
-import { buildSizeCarousel, buildTodoSizeCarousel, navigateCarousel, navigateTodoCarousel, openDrawer, closeDrawer, onChooseSize, onChooseTodoSize, onImageSelected, onConfirmYes, onConfirmNo } from './drawer.js';
+import { buildSizeCarousel, buildTodoSizeCarousel, buildLedgerSizeCarousel, navigateCarousel, navigateTodoCarousel, navigateLedgerCarousel, openDrawer, closeDrawer, onChooseSize, onChooseTodoSize, onChooseLedgerSize, onImageSelected, onConfirmYes, onConfirmNo } from './drawer.js';
 import { openAddModal, closeAddModal, showModalStep, bindColorPicker, bindVisibilityOptions, createFile, createDiary } from './modals.js';
 import { saveEntries } from './state.js';
 import { showToast } from './utils.js';
@@ -16,6 +16,7 @@ import { updateGridDimensionsFromContainer, buildLegoGrid } from './grid.js';
 import { renderBreadcrumbs } from './folderManager.js';
 import { renderStorageBox } from './storageBox.js';
 import { closeBookEditor, turnPageLeft, turnPageRight, renderBookSpread, openPageOverview, closePageOverview } from './bookEditor.js';
+import { bindLedgerDetailEvents } from './ledgerDetail.js';
 
 
 /* ── Initialization ──────────────────────────────────── */
@@ -27,6 +28,8 @@ function init() {
   initContextMenu();
   buildSizeCarousel();
   buildTodoSizeCarousel();
+  buildLedgerSizeCarousel();
+  bindLedgerDetailEvents();
   bindTodoComposeSheetEvents();
   bindTodoGroupRenameEvents();
   bindTodoResizeSheetEvents();
@@ -104,10 +107,13 @@ function bindEvents() {
   // Choose size
   dom.btnChooseSize?.addEventListener('click', onChooseSize);
   dom.btnChooseTodoSize?.addEventListener('click', onChooseTodoSize);
+  document.getElementById('btn-choose-ledger')?.addEventListener('click', onChooseLedgerSize);
 
   // To-Do carousel navigation
   dom.todoCarouselPrev?.addEventListener('click', () => navigateTodoCarousel(-1));
   dom.todoCarouselNext?.addEventListener('click', () => navigateTodoCarousel(1));
+  document.getElementById('ledger-carousel-prev')?.addEventListener('click', () => navigateLedgerCarousel(-1));
+  document.getElementById('ledger-carousel-next')?.addEventListener('click', () => navigateLedgerCarousel(1));
 
   // File input change
   dom.fileInputHidden?.addEventListener('change', onImageSelected);

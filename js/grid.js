@@ -174,7 +174,7 @@ function onCellHover(row, col) {
 
 function onCellClick(row, col) {
   if (!state.placementMode || !state.placementSize) return;
-  if (state.placementType !== 'todo' && !state.placementImage) return;
+  if (!['todo', 'ledger'].includes(state.placementType) && !state.placementImage) return;
 
   const { cols: wCols, rows: wRows } = state.placementSize;
   if (!checkPlacement(row, col, wCols, wRows)) {
