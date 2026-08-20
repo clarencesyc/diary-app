@@ -363,6 +363,12 @@
 
         <div class="ledger-detail-active-filters" id="ledger-active-filters"></div>
 
+        <div class="ledger-kind-tabs" role="tablist" aria-label="거래 종류">
+          <button type="button" class="ledger-kind-tab active" data-kind-filter="all" role="tab" aria-selected="true">전체</button>
+          <button type="button" class="ledger-kind-tab expense" data-kind-filter="expense" role="tab" aria-selected="false">지출</button>
+          <button type="button" class="ledger-kind-tab income" data-kind-filter="income" role="tab" aria-selected="false">수입</button>
+        </div>
+
         <div class="ledger-detail-headers">
           <div class="ledger-h-spacer ledger-h-kind-spacer"></div>
           <button type="button" class="ledger-h ledger-h-date ledger-filter-btn" data-filter="date">날짜 ▾</button>

@@ -15,10 +15,15 @@ function syncCurrentPageWidgets() {
   saveEntries();
 }
 
+function createWidgetId() {
+  if (globalThis.crypto?.randomUUID) return `w_${globalThis.crypto.randomUUID()}`;
+  return `w_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
 
 /* ── Place Widget ────────────────────────────────────── */
 export function placeWidget(row, col, wCols, wRows, imageData) {
-  let widgetId = `w_${state.widgetIdCounter++}`;
+  let widgetId = createWidgetId();
   let type = 'gallery';
 
   if (state.movingWidget) {
@@ -329,7 +334,7 @@ export function pickupWidget(w) {
 
 /* ── Restore Widget (from saved data) ────────────────── */
 export function restoreWidget(w) {
-  const widgetId = `w_${state.widgetIdCounter++}`;
+  const widgetId = w.id || createWidgetId();
   const widgetData = { ...w, id: widgetId };
 
   if (checkPlacement(w.row, w.col, w.cols, w.rows)) {

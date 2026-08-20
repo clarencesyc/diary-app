@@ -5,6 +5,7 @@
 // --- Data Migration for backward compatibility ---
 function migrateEntries(entries) {
   if (!Array.isArray(entries)) return [];
+  const makeWidgetId = () => `w_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
   entries.forEach(entry => {
     // Migrate to nested folders
     if (entry.parentId === undefined) {
@@ -22,7 +23,18 @@ function migrateEntries(entries) {
       ];
       delete entry.widgets;
     }
+    if (entry.type === 'diary' && Array.isArray(entry.pages)) {
+      const seenWidgetIds = new Set();
+      entry.pages.forEach((page) => {
+        if (!page || !Array.isArray(page.widgets)) return;
+        page.widgets.forEach((widget) => {
+          if (!widget.id || seenWidgetIds.has(widget.id)) widget.id = makeWidgetId();
+          seenWidgetIds.add(widget.id);
+        });
+      });
+    }
   });
+  localStorage.setItem('memento_entries', JSON.stringify(entries));
   return entries;
 }
 

@@ -32,6 +32,7 @@ const filters = {
   categories: [],
   query: '',
   priceSort: '',
+  kind: 'all',
 };
 
 const PAYMENT_METHODS = ['현금', '체크카드', '신용카드', '계좌이체'];
@@ -110,6 +111,7 @@ function getFilteredSortedItems() {
         .some((v) => String(v || '').toLocaleLowerCase('ko').includes(q))
     );
   }
+  if (filters.kind !== 'all') list = list.filter((i) => itemKind(i) === filters.kind);
 
   if (filters.priceSort) {
     list.sort((a, b) => {
@@ -451,8 +453,18 @@ function resetFiltersQuiet() {
   filters.categories = [];
   filters.query = '';
   filters.priceSort = '';
+  filters.kind = 'all';
   const search = $('#ledger-search');
   if (search) search.value = '';
+  syncKindTabs();
+}
+
+function syncKindTabs() {
+  $$('[data-kind-filter]').forEach((button) => {
+    const active = button.dataset.kindFilter === filters.kind;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-selected', String(active));
+  });
 }
 
 function nextRecurringDate(iso, frequency) {
@@ -554,7 +566,9 @@ async function addItem(kind = 'expense') {
       filters.dateFrom = '';
       filters.dateTo = '';
       filters.categories = [];
+      filters.kind = kind === 'income' ? 'income' : 'expense';
       syncPopoverUI();
+      syncKindTabs();
       showToast('새 항목이 보이도록 필터를 해제했습니다');
     }
     renderDetailRows();
@@ -608,6 +622,13 @@ export function bindLedgerDetailEvents() {
   $('#ledger-search')?.addEventListener('input', (e) => {
     filters.query = e.target.value.trim();
     renderDetailRows();
+  });
+  $$('[data-kind-filter]').forEach((button) => {
+    button.addEventListener('click', () => {
+      filters.kind = button.dataset.kindFilter || 'all';
+      syncKindTabs();
+      renderDetailRows();
+    });
   });
   $('#lms-budget-input')?.addEventListener('change', (e) => {
     if (!currentWidget) return;
