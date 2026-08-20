@@ -3137,9 +3137,9 @@ body::before {
 }
 
 #ledger-page .ledger-detail-panel {
-  width: min(1060px, 100%);
-  min-height: min(76vh, 720px);
-  max-height: calc(100vh - 112px);
+  width: min(1280px, 100%);
+  min-height: auto;
+  max-height: none;
   padding: clamp(14px, 2vw, 24px);
   border: 1px solid rgba(255,255,255,0.92);
   border-radius: 26px;
@@ -3202,8 +3202,13 @@ body::before {
 
 #ledger-page .ledger-month-summary {
   position: relative;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: stretch;
+  column-gap: 12px;
+  row-gap: 10px;
   overflow: hidden;
-  padding: 16px;
+  padding: 14px 16px;
   border: 1px solid rgba(255,255,255,0.92);
   border-radius: 19px;
   background:
@@ -3213,7 +3218,8 @@ body::before {
 }
 
 #ledger-page .lms-header {
-  margin-bottom: 14px;
+  grid-column: 1 / -1;
+  margin-bottom: 0;
 }
 
 #ledger-page .lms-title {
@@ -3237,7 +3243,9 @@ body::before {
 }
 
 #ledger-page .lms-stats {
+  grid-column: 1 / 8;
   gap: 10px;
+  margin-bottom: 0;
 }
 
 #ledger-page .lms-stat {
@@ -3288,7 +3296,8 @@ body::before {
 }
 
 #ledger-page .lms-budget {
-  margin: 12px 0 14px;
+  grid-column: 8 / -1;
+  margin: 0;
   padding: 11px 12px;
   border: 1px solid rgba(255,255,255,0.82);
   border-radius: 14px;
@@ -3351,10 +3360,29 @@ body::before {
 }
 
 #ledger-page .lms-cats-title {
+  grid-column: 1 / -1;
+  margin: 0;
   color: rgba(76,59,55,0.62);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 0.58rem;
+}
+
+#ledger-page .lms-cats {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px 12px;
+  max-height: 86px;
+  overflow-y: auto;
+}
+
+#ledger-page .lms-cat-row {
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid rgba(255,255,255,0.7);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.35);
 }
 
 #ledger-page .lms-bar-track {
@@ -3394,7 +3422,10 @@ body::before {
 }
 
 #ledger-page .ledger-detail-rows {
+  flex: none;
   gap: 8px;
+  min-height: 220px;
+  max-height: 360px;
   padding: 2px 4px 4px 2px;
 }
 
@@ -3484,7 +3515,7 @@ body::before {
   display: flex;
   justify-content: center;
   gap: 8px;
-  margin: 12px auto 5px;
+  margin: 9px auto 4px;
 }
 
 #ledger-page .ledger-add-actions .ledger-add-row {
@@ -3508,9 +3539,11 @@ body::before {
 }
 
 #ledger-page .ledger-detail-totals {
-  gap: 7px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
   margin-top: 8px;
-  padding: 12px 14px;
+  padding: 9px 14px;
   border: 1px solid rgba(255,255,255,0.88);
   border-radius: 15px;
   background:
@@ -3519,8 +3552,21 @@ body::before {
 }
 
 #ledger-page .ld-total-row.balance-row {
-  padding-top: 8px;
-  border-color: rgba(115,79,69,0.1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+#ledger-page .ledger-detail-totals .ld-total-row {
+  gap: 12px;
+  justify-content: center;
+  padding-right: 10px;
+  border-right: 1px solid rgba(115,79,69,0.09);
+}
+
+#ledger-page .ledger-detail-totals .ld-total-row:last-child {
+  padding-right: 0;
+  border-right: 0;
 }
 
 #ledger-page .ledger-detail-totals .ledger-total-label {
@@ -3626,7 +3672,20 @@ body::before {
   }
 
   #ledger-page .ledger-month-summary {
+    display: block;
     padding: 12px;
+  }
+
+  #ledger-page .lms-header,
+  #ledger-page .lms-stats,
+  #ledger-page .lms-budget,
+  #ledger-page .lms-cats-title {
+    margin-bottom: 10px;
+  }
+
+  #ledger-page .lms-cats {
+    display: flex;
+    max-height: 140px;
   }
 
   #ledger-page .lms-stats {
@@ -3653,6 +3712,16 @@ body::before {
 
   #ledger-page .ledger-detail-panel {
     overflow-x: auto;
+  }
+
+  #ledger-page .ledger-detail-totals {
+    grid-template-columns: 1fr;
+  }
+
+  #ledger-page .ledger-detail-totals .ld-total-row {
+    justify-content: space-between;
+    padding: 0;
+    border-right: 0;
   }
 }
 
