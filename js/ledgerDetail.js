@@ -11,6 +11,8 @@ import {
   createLedgerItem,
   updateLedgerItem,
   deleteLedgerItem,
+  fetchLedgerSettings,
+  saveLedgerSettings,
 } from './api.js';
 import {
   formatWon,
@@ -45,6 +47,7 @@ let currentWidget = null;
 let bound = false;
 let dirty = false;
 let summaryCursor = new Date(); // month shown in summary card
+let travelSettings = {};
 
 function diaryId() {
   return state.currentDiary?.id;
@@ -66,7 +69,62 @@ function monthKey(d) {
 
 function currentMonthBudget() {
   if (!currentWidget) return 0;
+  if (travelSettings.tripBudget) return Number(travelSettings.tripBudget) || 0;
   return Number(currentWidget.monthlyBudgets?.[monthKey(summaryCursor)]) || 0;
+}
+
+function itemsInActivePeriod() {
+  if (travelSettings.tripStart || travelSettings.tripEnd) {
+    return allItems.filter((i) =>
+      (!travelSettings.tripStart || i.date >= travelSettings.tripStart) &&
+      (!travelSettings.tripEnd || i.date <= travelSettings.tripEnd)
+    );
+  }
+  const key = monthKey(summaryCursor);
+  return allItems.filter((i) => (i.date || '').startsWith(key));
+}
+
+function daysBetween(from, to) {
+  if (!from || !to) return 0;
+  return Math.max(1, Math.floor((new Date(`${to}T00:00:00Z`) - new Date(`${from}T00:00:00Z`)) / 86400000) + 1);
+}
+
+function renderTravelInsights(items, expense, budget) {
+  const insights = $('#trip-insights');
+  const chart = $('#trip-daily-chart');
+  const settlement = $('#trip-settlement');
+  if (!insights || !chart || !settlement) return;
+  const totalDays = daysBetween(travelSettings.tripStart, travelSettings.tripEnd);
+  const today = todayISO();
+  const remainingDays = travelSettings.tripEnd && totalDays
+    ? Math.max(1, daysBetween(today < travelSettings.tripStart ? travelSettings.tripStart : today, travelSettings.tripEnd)) : 0;
+  const dailyAvailable = budget > expense && remainingDays ? Math.floor((budget - expense) / remainingDays) : 0;
+  insights.innerHTML = totalDays ? `
+    <span><small>여행 기간</small><strong>${totalDays}일</strong></span>
+    <span><small>일평균 지출</small><strong>${formatWon(Math.round(expense / totalDays))}</strong></span>
+    <span><small>하루 사용 가능</small><strong>${dailyAvailable ? formatWon(dailyAvailable) : '—'}</strong></span>
+  ` : '<span class="trip-insight-hint">여행 설정에서 기간을 입력하면 일별 분석을 볼 수 있어요.</span>';
+
+  const byDay = {};
+  items.filter((i) => itemKind(i) === 'expense').forEach((i) => { byDay[i.date] = (byDay[i.date] || 0) + Number(i.price || 0); });
+  const daily = Object.entries(byDay).sort((a, b) => a[0].localeCompare(b[0]));
+  const max = Math.max(1, ...daily.map(([, amount]) => amount));
+  chart.innerHTML = daily.length ? daily.map(([date, amount]) => `
+    <div class="trip-day-bar" title="${date} · ${formatWon(amount)}"><i style="height:${Math.max(8, Math.round(amount / max * 100))}%"></i><span>${date.slice(5)}</span></div>
+  `).join('') : '';
+
+  const balances = {};
+  items.filter((i) => itemKind(i) === 'expense' && i.payer && i.participants?.length).forEach((i) => {
+    const people = i.participants.filter(Boolean);
+    if (!people.length) return;
+    const share = Number(i.price || 0) / people.length;
+    balances[i.payer] = (balances[i.payer] || 0) + Number(i.price || 0);
+    people.forEach((name) => { balances[name] = (balances[name] || 0) - share; });
+  });
+  const rows = Object.entries(balances).filter(([, amount]) => Math.abs(amount) >= 1).sort((a,b) => b[1]-a[1]);
+  settlement.innerHTML = rows.length
+    ? `<strong>동행 정산</strong>${rows.map(([name, amount]) => `<span>${escapeHTML(name)} <b class="${amount >= 0 ? 'receive' : 'pay'}">${amount >= 0 ? '받을 금액' : '낼 금액'} ${formatWon(Math.abs(Math.round(amount)))}</b></span>`).join('')}`
+    : '';
 }
 
 function setSaveStatus(mode = 'saved') {
@@ -75,6 +133,51 @@ function setSaveStatus(mode = 'saved') {
   const labels = { saving: '저장 중…', saved: '✓ 저장됨', error: '저장 실패' };
   el.textContent = labels[mode] || labels.saved;
   el.className = `ledger-save-status is-${mode}`;
+}
+
+function fillTripSettingsForm() {
+  const values = {
+    '#trip-start': travelSettings.tripStart || '',
+    '#trip-end': travelSettings.tripEnd || '',
+    '#trip-budget': travelSettings.tripBudget || '',
+    '#trip-local-currency': travelSettings.localCurrency || 'KRW',
+    '#trip-exchange-rate': travelSettings.exchangeRate || 1,
+    '#trip-travelers': (travelSettings.travelers || []).join(', '),
+  };
+  Object.entries(values).forEach(([selector, value]) => { const el = $(selector); if (el) el.value = value; });
+}
+
+async function persistTravelSettings() {
+  if (!currentWidget) return;
+  const next = {
+    tripStart: $('#trip-start')?.value || '',
+    tripEnd: $('#trip-end')?.value || '',
+    tripBudget: Number($('#trip-budget')?.value) || 0,
+    baseCurrency: 'KRW',
+    localCurrency: $('#trip-local-currency')?.value || 'KRW',
+    exchangeRate: Number($('#trip-exchange-rate')?.value) || 1,
+    travelers: String($('#trip-travelers')?.value || '').split(',').map((name) => name.trim()).filter(Boolean),
+  };
+  if (next.tripStart && next.tripEnd && next.tripStart > next.tripEnd) [next.tripStart, next.tripEnd] = [next.tripEnd, next.tripStart];
+  travelSettings = next;
+  currentWidget.travelSettings = next;
+  saveEntries();
+  try {
+    setSaveStatus('saving');
+    const data = await saveLedgerSettings(diaryId(), currentWidget.id, next);
+    travelSettings = data.settings || next;
+    currentWidget.travelSettings = travelSettings;
+    saveEntries();
+    fillTripSettingsForm();
+    setSaveStatus('saved');
+    $('#trip-settings-panel')?.classList.add('hidden');
+    renderDetailRows();
+  } catch (err) {
+    setSaveStatus('error');
+    showToast('여행 설정은 기기에 저장됐으며 연결 시 다시 저장해주세요');
+    fillTripSettingsForm();
+    renderDetailRows();
+  }
 }
 
 function closePopovers() {
@@ -185,10 +288,11 @@ function renderMonthSummary() {
   const title = $('#lms-title');
   const y = summaryCursor.getFullYear();
   const m = summaryCursor.getMonth() + 1;
-  if (title) title.textContent = `${y}년 ${m}월 요약`;
+  if (title) title.textContent = travelSettings.tripStart || travelSettings.tripEnd
+    ? `${currentWidget?.budgetName || '여행'} · 여행 요약`
+    : `${y}년 ${m}월 요약`;
 
-  const key = monthKey(summaryCursor);
-  const monthItems = allItems.filter((i) => (i.date || '').startsWith(key));
+  const monthItems = itemsInActivePeriod();
   const { income, expense, balance } = summarizeItems(monthItems);
 
   const incomeEl = $('#lms-income');
@@ -219,6 +323,9 @@ function renderMonthSummary() {
       : '예산을 입력해주세요';
     budgetRemaining.classList.toggle('over', budget > 0 && expense > budget);
   }
+  const budgetLabel = document.querySelector('.lms-budget-head > label');
+  if (budgetLabel) budgetLabel.textContent = travelSettings.tripBudget ? '총 여행 예산' : '이번 달 예산';
+  renderTravelInsights(monthItems, expense, budget);
 
   const catsEl = $('#lms-cats');
   if (!catsEl) return;
@@ -275,7 +382,18 @@ async function persistRow(row, itemId) {
     recurring: Boolean(row.querySelector('[data-field="recurring"]')?.checked),
     recurrenceFrequency: row.querySelector('[data-field="recurrenceFrequency"]')?.value || 'month',
     recurrenceEndDate: row.querySelector('[data-field="recurrenceEndDate"]')?.value || '',
+    originalAmount: Number(row.querySelector('[data-field="originalAmount"]')?.value) || Number(row.querySelector('[data-field="price"]').value) || 0,
+    currency: row.querySelector('[data-field="currency"]')?.value || travelSettings.localCurrency || 'KRW',
+    exchangeRate: Number(row.querySelector('[data-field="exchangeRate"]')?.value) || 1,
+    payer: row.querySelector('[data-field="payer"]')?.value || '',
+    participants: [...row.querySelectorAll('[data-participant]:checked')].map((input) => input.value),
+    locationName: row.querySelector('[data-field="locationName"]')?.value || '',
+    receiptData: row.dataset.receiptData || '',
   };
+  if (row.querySelector('[data-field="originalAmount"]')) {
+    payload.price = Math.round(payload.originalAmount * payload.exchangeRate);
+    row.querySelector('[data-field="price"]').value = payload.price;
+  }
   if (payload.category) rememberCategory(payload.category);
   try {
     setSaveStatus('saving');
@@ -303,10 +421,16 @@ function buildEditableRow(item) {
   const recurrenceOptions = RECURRENCE_OPTIONS.map(([key, label]) =>
     `<option value="${key}" ${(item.recurrenceFrequency || 'month') === key ? 'selected' : ''}>${label}</option>`
   ).join('');
+  const currencies = ['KRW', 'JPY', 'CNY', 'USD', 'EUR', 'THB', 'VND', 'TWD'];
+  const currencyOptions = currencies.map((code) => `<option value="${code}" ${(item.currency || travelSettings.localCurrency || 'KRW') === code ? 'selected' : ''}>${code}</option>`).join('');
+  const travelers = travelSettings.travelers || [];
+  const payerOptions = ['<option value="">결제자 선택</option>', ...travelers.map((name) => `<option value="${escapeHTML(name)}" ${item.payer === name ? 'selected' : ''}>${escapeHTML(name)}</option>`)].join('');
+  const participantOptions = travelers.map((name) => `<label class="trip-participant"><input type="checkbox" data-participant value="${escapeHTML(name)}" ${(item.participants || []).includes(name) ? 'checked' : ''}/><span>${escapeHTML(name)}</span></label>`).join('');
   const row = document.createElement('div');
   row.className = `ledger-detail-row is-editable kind-${kind}`;
   row.dataset.itemId = item.id;
   row.dataset.kind = kind;
+  row.dataset.receiptData = item.receiptData || '';
   row.innerHTML = `
     <button type="button" class="kind-toggle" data-field="kind" title="수입/지출 전환">${kind === 'income' ? '수입' : '지출'}</button>
     <input class="ledger-cell ledger-cell-date" type="date" data-field="date" value="${escapeHTML(item.date || '')}" />
@@ -324,14 +448,29 @@ function buildEditableRow(item) {
       </label>
       <label class="ledger-recurrence-field"><span>주기</span><select class="ledger-cell" data-field="recurrenceFrequency">${recurrenceOptions}</select></label>
       <label class="ledger-recurrence-field"><span>종료일</span><input class="ledger-cell" type="date" data-field="recurrenceEndDate" value="${escapeHTML(item.recurrenceEndDate || '')}" /></label>
+      <label><span>현지 금액</span><input class="ledger-cell" type="number" min="0" step="0.01" data-field="originalAmount" value="${item.originalAmount ?? item.price ?? 0}" /></label>
+      <label><span>통화</span><select class="ledger-cell" data-field="currency">${currencyOptions}</select></label>
+      <label><span>환율(원)</span><input class="ledger-cell" type="number" min="0" step="0.0001" data-field="exchangeRate" value="${item.exchangeRate || travelSettings.exchangeRate || 1}" /></label>
+      <label><span>결제자</span><select class="ledger-cell" data-field="payer">${payerOptions}</select></label>
+      <div class="trip-participants"><span>함께 부담</span><div>${participantOptions || '<small>여행 설정에서 동행자를 추가하세요</small>'}</div></div>
+      <label><span>장소</span><input class="ledger-cell" type="text" data-field="locationName" placeholder="예: 시부야역" value="${escapeHTML(item.locationName || '')}" /></label>
+      <label class="trip-receipt-field"><span>영수증</span><input type="file" accept="image/*" data-field="receiptFile" /><em>${item.receiptData ? '첨부됨' : '선택 사항'}</em></label>
     </div>
   `;
 
   const catWrap = row.querySelector('[data-field="category-wrap"]');
   row._catApi = mountCategorySelect(catWrap, item.category || '', () => persistRow(row, item.id), DETAIL_MENU_ID);
 
-  row.querySelectorAll('.ledger-cell, [data-field="recurring"]').forEach((input) => {
+  row.querySelectorAll('.ledger-cell, [data-field="recurring"], [data-participant]').forEach((input) => {
     input.addEventListener('change', () => persistRow(row, item.id));
+  });
+  row.querySelector('[data-field="receiptFile"]')?.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 700000) { showToast('영수증 이미지는 700KB 이하로 선택해주세요'); e.target.value = ''; return; }
+    const reader = new FileReader();
+    reader.onload = () => { row.dataset.receiptData = String(reader.result || ''); persistRow(row, item.id); e.target.nextElementSibling.textContent = '첨부됨'; };
+    reader.readAsDataURL(file);
   });
 
   const advanced = row.querySelector('.ledger-row-advanced');
@@ -508,6 +647,13 @@ async function materializeRecurringItems(items) {
         recurring: false,
         recurrenceFrequency: frequency,
         recurrenceEndDate: root.recurrenceEndDate || '',
+        originalAmount: root.originalAmount ?? root.price,
+        currency: root.currency || travelSettings.localCurrency || 'KRW',
+        exchangeRate: root.exchangeRate || 1,
+        payer: root.payer || '',
+        participants: root.participants || [],
+        locationName: root.locationName || '',
+        receiptData: '',
         recurringSourceId: root.id,
       });
       next = data.items || next;
@@ -524,6 +670,13 @@ async function loadItems() {
   if (!id || !currentWidget) return;
   try {
     await syncCategories(currentWidget.id);
+    try {
+      const settingsData = await fetchLedgerSettings(id, currentWidget.id);
+      travelSettings = settingsData.settings || currentWidget.travelSettings || {};
+    } catch {
+      travelSettings = currentWidget.travelSettings || {};
+    }
+    fillTripSettingsForm();
     const data = await fetchLedgerItems(id, currentWidget.id);
     allItems = await materializeRecurringItems(data.items || []);
     allItems.forEach((i) => {
@@ -557,6 +710,13 @@ async function addItem(kind = 'expense') {
       recurring: false,
       recurrenceFrequency: 'month',
       recurrenceEndDate: '',
+      originalAmount: 0,
+      currency: travelSettings.localCurrency || 'KRW',
+      exchangeRate: travelSettings.exchangeRate || 1,
+      payer: '',
+      participants: [],
+      locationName: '',
+      receiptData: '',
     });
     allItems = data.items;
     dirty = true;
@@ -584,6 +744,7 @@ async function addItem(kind = 'expense') {
 
 export async function openLedgerDetail(widget) {
   currentWidget = widget;
+  travelSettings = {};
   dirty = false;
   resetFiltersQuiet();
   summaryCursor = new Date();
@@ -623,6 +784,11 @@ export function bindLedgerDetailEvents() {
     filters.query = e.target.value.trim();
     renderDetailRows();
   });
+  $('#ledger-trip-settings')?.addEventListener('click', () => {
+    fillTripSettingsForm();
+    $('#trip-settings-panel')?.classList.toggle('hidden');
+  });
+  $('#trip-settings-save')?.addEventListener('click', persistTravelSettings);
   $$('[data-kind-filter]').forEach((button) => {
     button.addEventListener('click', () => {
       filters.kind = button.dataset.kindFilter || 'all';
@@ -632,6 +798,14 @@ export function bindLedgerDetailEvents() {
   });
   $('#lms-budget-input')?.addEventListener('change', (e) => {
     if (!currentWidget) return;
+    if (travelSettings.tripStart || travelSettings.tripEnd || travelSettings.tripBudget) {
+      travelSettings.tripBudget = Math.max(0, Number(e.target.value) || 0);
+      saveLedgerSettings(diaryId(), currentWidget.id, travelSettings).catch(() => setSaveStatus('error'));
+      fillTripSettingsForm();
+      renderMonthSummary();
+      setSaveStatus('saved');
+      return;
+    }
     if (!currentWidget.monthlyBudgets) currentWidget.monthlyBudgets = {};
     currentWidget.monthlyBudgets[monthKey(summaryCursor)] = Math.max(0, Number(e.target.value) || 0);
     saveEntries();
@@ -655,10 +829,11 @@ export function bindLedgerDetailEvents() {
   $('#ledger-export')?.addEventListener('click', () => {
     const rows = getFilteredSortedItems();
     const csvCell = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`;
-    const header = ['구분', '날짜', '내용', '카테고리', '금액', '결제수단', '메모', '반복'];
+    const header = ['구분', '날짜', '내용', '카테고리', '원화금액', '현지금액', '통화', '환율', '결제수단', '결제자', '참여자', '장소', '메모', '반복'];
     const body = rows.map((i) => [
       itemKind(i) === 'income' ? '수입' : '지출',
-      i.date, i.content, i.category, i.price, i.paymentMethod, i.memo,
+      i.date, i.content, i.category, i.price, i.originalAmount, i.currency, i.exchangeRate,
+      i.paymentMethod, i.payer, (i.participants || []).join(' / '), i.locationName, i.memo,
       i.recurring
         ? ({ week: '매주', month: '매월', year: '매년' }[i.recurrenceFrequency || 'month'])
         : '',

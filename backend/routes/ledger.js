@@ -26,6 +26,15 @@ router.put('/categories', (req, res) => {
   res.json({ categories });
 });
 
+router.get('/settings', (req, res) => {
+  res.json({ settings: store.getSettings(req.params.diaryId, req.params.widgetId) });
+});
+
+router.put('/settings', (req, res) => {
+  const settings = store.saveSettings(req.params.diaryId, req.params.widgetId, req.body || {});
+  res.json({ settings });
+});
+
 router.post('/', (req, res) => {
   const { diaryId, widgetId } = req.params;
   const item = store.create(diaryId, widgetId, req.body || {});

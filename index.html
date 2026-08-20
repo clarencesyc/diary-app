@@ -319,9 +319,20 @@
             <input type="search" id="ledger-search" placeholder="거래 내용 검색" autocomplete="off" />
           </label>
           <button type="button" class="budget-tool-btn" id="ledger-rename">이름 변경</button>
+          <button type="button" class="budget-tool-btn" id="ledger-trip-settings">여행 설정</button>
           <button type="button" class="budget-tool-btn" id="ledger-export">CSV 내보내기</button>
           <span class="ledger-save-status is-saved" id="ledger-save-status" role="status">✓ 저장됨</span>
         </div>
+
+        <section class="trip-settings-panel hidden" id="trip-settings-panel">
+          <div class="trip-setting-field"><label for="trip-start">출발일</label><input type="date" id="trip-start" /></div>
+          <div class="trip-setting-field"><label for="trip-end">도착일</label><input type="date" id="trip-end" /></div>
+          <div class="trip-setting-field"><label for="trip-budget">총 여행 예산</label><input type="number" id="trip-budget" min="0" step="10000" /></div>
+          <div class="trip-setting-field"><label for="trip-local-currency">현지 통화</label><select id="trip-local-currency"><option>KRW</option><option>JPY</option><option>CNY</option><option>USD</option><option>EUR</option><option>THB</option><option>VND</option><option>TWD</option></select></div>
+          <div class="trip-setting-field"><label for="trip-exchange-rate">1 현지통화당 원화</label><input type="number" id="trip-exchange-rate" min="0" step="0.0001" value="1" /></div>
+          <div class="trip-setting-field travelers"><label for="trip-travelers">동행자</label><input type="text" id="trip-travelers" placeholder="쉼표로 구분: 나, 친구A, 친구B" /></div>
+          <button type="button" class="budget-tool-btn trip-settings-save" id="trip-settings-save">설정 저장</button>
+        </section>
 
         <section class="ledger-month-summary" id="ledger-month-summary">
           <div class="lms-header">
@@ -359,6 +370,9 @@
           </div>
           <div class="lms-cats-title">카테고리별 지출</div>
           <div class="lms-cats" id="lms-cats"></div>
+          <div class="trip-insights" id="trip-insights"></div>
+          <div class="trip-daily-chart" id="trip-daily-chart"></div>
+          <div class="trip-settlement" id="trip-settlement"></div>
         </section>
 
         <div class="ledger-detail-active-filters" id="ledger-active-filters"></div>
@@ -366,7 +380,7 @@
         <div class="ledger-kind-tabs" role="tablist" aria-label="거래 종류">
           <button type="button" class="ledger-kind-tab active" data-kind-filter="all" role="tab" aria-selected="true">전체</button>
           <button type="button" class="ledger-kind-tab expense" data-kind-filter="expense" role="tab" aria-selected="false">지출</button>
-          <button type="button" class="ledger-kind-tab income" data-kind-filter="income" role="tab" aria-selected="false">수입</button>
+          <button type="button" class="ledger-kind-tab income" data-kind-filter="income" role="tab" aria-selected="false">환급·입금</button>
         </div>
 
         <div class="ledger-detail-headers">

@@ -8,6 +8,7 @@ const path = require('path');
 const DATA_DIR = path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'ledgers.json');
 const CATEGORY_FILE = path.join(DATA_DIR, 'ledger-categories.json');
+const SETTINGS_FILE = path.join(DATA_DIR, 'ledger-settings.json');
 
 function ensureStore() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -30,6 +31,20 @@ function readCategories() {
 function writeCategories(data) {
   ensureStore();
   fs.writeFileSync(CATEGORY_FILE, JSON.stringify(data, null, 2));
+}
+
+function readSettings() {
+  ensureStore();
+  if (!fs.existsSync(SETTINGS_FILE)) return {};
+  try {
+    const data = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+    return data && typeof data === 'object' ? data : {};
+  } catch { return {}; }
+}
+
+function writeSettings(data) {
+  ensureStore();
+  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data, null, 2));
 }
 
 function readAll() {
@@ -81,6 +96,27 @@ module.exports = {
     return data[diaryId];
   },
 
+  getSettings(diaryId, widgetId) {
+    return readSettings()[`${diaryId}:${widgetId}`] || {};
+  },
+
+  saveSettings(diaryId, widgetId, settings) {
+    const data = readSettings();
+    const cleanTravelers = [...new Set((Array.isArray(settings.travelers) ? settings.travelers : [])
+      .map((name) => String(name).trim()).filter(Boolean))];
+    data[`${diaryId}:${widgetId}`] = {
+      tripStart: String(settings.tripStart || ''),
+      tripEnd: String(settings.tripEnd || ''),
+      tripBudget: Math.max(0, Number(settings.tripBudget) || 0),
+      baseCurrency: String(settings.baseCurrency || 'KRW'),
+      localCurrency: String(settings.localCurrency || 'KRW'),
+      exchangeRate: Math.max(0, Number(settings.exchangeRate) || 1),
+      travelers: cleanTravelers,
+    };
+    writeSettings(data);
+    return data[`${diaryId}:${widgetId}`];
+  },
+
   listByWidget(diaryId, widgetId) {
     return readAll()
       .filter((i) => i.diaryId === diaryId && i.widgetId === widgetId)
@@ -105,6 +141,13 @@ module.exports = {
       recurrenceFrequency: ['week', 'month', 'year'].includes(payload.recurrenceFrequency)
         ? payload.recurrenceFrequency : 'month',
       recurrenceEndDate: payload.recurrenceEndDate ? String(payload.recurrenceEndDate) : '',
+      originalAmount: Number(payload.originalAmount) || Number(payload.price) || 0,
+      currency: String(payload.currency || 'KRW'),
+      exchangeRate: Math.max(0, Number(payload.exchangeRate) || 1),
+      payer: String(payload.payer || '').trim(),
+      participants: Array.isArray(payload.participants) ? payload.participants.map(String) : [],
+      locationName: String(payload.locationName || '').trim(),
+      receiptData: String(payload.receiptData || ''),
       recurringSourceId: payload.recurringSourceId ? String(payload.recurringSourceId) : null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -140,6 +183,15 @@ module.exports = {
         payload.recurrenceEndDate !== undefined
           ? (payload.recurrenceEndDate ? String(payload.recurrenceEndDate) : '')
           : (prev.recurrenceEndDate || ''),
+      originalAmount: payload.originalAmount !== undefined ? Number(payload.originalAmount) || 0 : (prev.originalAmount ?? prev.price),
+      currency: payload.currency !== undefined ? String(payload.currency || 'KRW') : (prev.currency || 'KRW'),
+      exchangeRate: payload.exchangeRate !== undefined ? Math.max(0, Number(payload.exchangeRate) || 1) : (prev.exchangeRate || 1),
+      payer: payload.payer !== undefined ? String(payload.payer).trim() : (prev.payer || ''),
+      participants: payload.participants !== undefined
+        ? (Array.isArray(payload.participants) ? payload.participants.map(String) : [])
+        : (prev.participants || []),
+      locationName: payload.locationName !== undefined ? String(payload.locationName).trim() : (prev.locationName || ''),
+      receiptData: payload.receiptData !== undefined ? String(payload.receiptData || '') : (prev.receiptData || ''),
       recurringSourceId:
         payload.recurringSourceId !== undefined
           ? (payload.recurringSourceId ? String(payload.recurringSourceId) : null)

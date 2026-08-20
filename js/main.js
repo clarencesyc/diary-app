@@ -8,6 +8,10 @@ import { renderCalendar } from './calendar.js';
 import { renderEntries, toggleSort, initContextMenu } from './entries.js';
 import { buildSizeCarousel, buildTodoSizeCarousel, buildLedgerSizeCarousel, navigateCarousel, navigateTodoCarousel, navigateLedgerCarousel, openDrawer, closeDrawer, onChooseSize, onChooseTodoSize, onChooseLedgerSize, onImageSelected, onConfirmYes, onConfirmNo } from './drawer.js';
 import { openAddModal, closeAddModal, showModalStep, bindColorPicker, bindVisibilityOptions, createFile, createDiary } from './modals.js';
+
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
 import { saveEntries } from './state.js';
 import { showToast } from './utils.js';
 import { cancelPlacement, rerenderPlacedWidgets } from './widgets.js';

@@ -3225,6 +3225,29 @@ body::before {
 #ledger-page .ledger-save-status.is-saving { color: #a97b57; }
 #ledger-page .ledger-save-status.is-error { color: #ce6271; }
 
+#ledger-page .trip-settings-panel {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  align-items: end;
+  gap: 9px;
+  margin-bottom: 12px;
+  padding: 13px;
+  border: 1px solid rgba(255,255,255,0.9);
+  border-radius: 15px;
+  background: rgba(255,255,255,0.5);
+  box-shadow: 0 8px 20px rgba(93,63,54,0.05);
+}
+
+#ledger-page .trip-settings-panel.hidden { display: none; }
+#ledger-page .trip-setting-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+#ledger-page .trip-setting-field.travelers { grid-column: span 2; }
+#ledger-page .trip-setting-field label { color: #916f66; font-size: .59rem; font-weight: 700; }
+#ledger-page .trip-setting-field input,
+#ledger-page .trip-setting-field select {
+  min-width: 0; width: 100%; padding: 8px; border: 1px solid rgba(148,99,87,.11); border-radius: 9px;
+  color: #55413c; font: inherit; font-size: .7rem; background: rgba(255,255,255,.72);
+}
+
 #ledger-page .ledger-month-summary {
   position: relative;
   display: grid;
@@ -3402,6 +3425,40 @@ body::before {
   overflow-y: auto;
 }
 
+#ledger-page .trip-insights {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+#ledger-page .trip-insights > span {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.38);
+}
+#ledger-page .trip-insights small { color: #98766d; font-size: .58rem; }
+#ledger-page .trip-insights strong { color: #a6537c; font-size: .72rem; }
+#ledger-page .trip-insight-hint { grid-column: 1 / -1; justify-content: center !important; color: #a98a82; font-size: .64rem; }
+
+#ledger-page .trip-daily-chart {
+  grid-column: 1 / 8;
+  display: flex; align-items: end; gap: 5px; min-height: 70px; overflow-x: auto;
+  padding: 8px 10px; border-radius: 11px; background: rgba(255,255,255,.3);
+}
+#ledger-page .trip-day-bar { display: grid; grid-template-rows: 48px auto; align-items: end; min-width: 27px; height: 62px; text-align: center; }
+#ledger-page .trip-day-bar i { display: block; width: 14px; max-height: 48px; margin: auto; border-radius: 5px 5px 2px 2px; background: linear-gradient(#e98aad,#e4a083); }
+#ledger-page .trip-day-bar span { color: #a1847c; font-size: .5rem; }
+
+#ledger-page .trip-settlement {
+  grid-column: 8 / -1;
+  display: flex; flex-direction: column; gap: 5px; padding: 9px 11px; border-radius: 11px; background: rgba(255,255,255,.36);
+}
+#ledger-page .trip-settlement:empty { display: none; }
+#ledger-page .trip-settlement > strong { color: #805f57; font-size: .64rem; }
+#ledger-page .trip-settlement > span { display: flex; justify-content: space-between; gap: 8px; color: #765c55; font-size: .61rem; }
+#ledger-page .trip-settlement b.receive { color: #438e77; }
+#ledger-page .trip-settlement b.pay { color: #ce6572; }
+
 #ledger-page .lms-cat-row {
   min-width: 0;
   padding: 7px 9px;
@@ -3530,6 +3587,13 @@ body::before {
   border-radius: 9px;
   background: rgba(255,255,255,0.3);
 }
+
+#ledger-page .trip-participants { min-width: 0; color: #9a746a; font-size: .58rem; font-weight: 650; }
+#ledger-page .trip-participants > div { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; }
+#ledger-page .trip-participant { display: inline-flex !important; flex-direction: row !important; align-items: center; gap: 3px !important; padding: 3px 5px; border-radius: 6px; background: rgba(255,255,255,.58); }
+#ledger-page .trip-participant input { accent-color: #d977a2; }
+#ledger-page .trip-receipt-field input { max-width: 145px; font-size: .55rem; }
+#ledger-page .trip-receipt-field em { color: #a98a82; font-size: .54rem; font-style: normal; }
 
 #ledger-page .ledger-row-advanced.hidden { display: none; }
 
@@ -3775,6 +3839,9 @@ body::before {
     flex-basis: 100%;
   }
 
+  #ledger-page .trip-settings-panel { grid-template-columns: 1fr 1fr; }
+  #ledger-page .trip-setting-field.travelers { grid-column: 1 / -1; }
+
   #ledger-page .ledger-month-summary {
     display: block;
     padding: 12px;
@@ -3791,6 +3858,10 @@ body::before {
     display: flex;
     max-height: 140px;
   }
+
+  #ledger-page .trip-insights { grid-template-columns: 1fr; }
+  #ledger-page .trip-daily-chart,
+  #ledger-page .trip-settlement { width: 100%; margin-top: 8px; }
 
   #ledger-page .lms-stats {
     grid-template-columns: repeat(3, minmax(0, 1fr));
