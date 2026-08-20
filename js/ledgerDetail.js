@@ -293,9 +293,9 @@ function buildEditableRow(item) {
     <input class="ledger-cell ledger-cell-price" type="number" data-field="price" min="0" step="1" placeholder="0" value="${item.price ?? 0}" />
     <div class="ledger-row-options">
       <select class="ledger-cell ledger-payment-select" data-field="paymentMethod">${paymentOptions}</select>
-      <label class="ledger-recurring-toggle" title="매월 반복">
-        <input type="checkbox" data-field="recurring" ${item.recurring ? 'checked' : ''} />
-        <span>반복</span>
+      <label class="ledger-recurring-toggle" title="체크하면 다음 달부터 같은 날짜에 이 거래가 자동으로 추가됩니다">
+        <input type="checkbox" data-field="recurring" aria-label="매월 같은 날짜에 자동 추가" ${item.recurring ? 'checked' : ''} />
+        <span>매월 자동</span>
       </label>
     </div>
     <button type="button" class="ledger-row-delete" title="삭제">×</button>

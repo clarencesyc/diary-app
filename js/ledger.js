@@ -22,6 +22,10 @@ const CAT_COLORS = [
 ];
 
 const DEFAULT_CATEGORIES = [
+  '식비', '교통', '생활', '고정비', '여가', '수입', '기타',
+];
+
+const LEGACY_DEFAULT_CATEGORIES = [
   '식비', '교통', '쇼핑', '주거·공과금', '여가',
   '의료', '교육', '급여', '용돈', '기타',
 ];
@@ -60,10 +64,22 @@ function catStorageKey() {
   return `memento_categories_${diaryId() || 'global'}`;
 }
 
+function catVersionKey() {
+  return `${catStorageKey()}_version`;
+}
+
 export function loadCategories() {
   try {
-    const saved = JSON.parse(localStorage.getItem(catStorageKey()) || '[]');
-    return [...new Set([...DEFAULT_CATEGORIES, ...(Array.isArray(saved) ? saved : [])])];
+    let saved = JSON.parse(localStorage.getItem(catStorageKey()) || '[]');
+    saved = Array.isArray(saved) ? saved : [];
+    if (localStorage.getItem(catVersionKey()) !== '2') {
+      saved = saved.filter((name) =>
+        !LEGACY_DEFAULT_CATEGORIES.includes(name) || DEFAULT_CATEGORIES.includes(name)
+      );
+      localStorage.setItem(catStorageKey(), JSON.stringify(saved));
+      localStorage.setItem(catVersionKey(), '2');
+    }
+    return [...new Set([...DEFAULT_CATEGORIES, ...saved])];
   } catch {
     return [...DEFAULT_CATEGORIES];
   }
@@ -120,9 +136,9 @@ export function mountCategorySelect(wrap, initialValue, onCommit, widgetId) {
   menu.className = 'cat-menu';
   menu.dataset.ledgerWidget = widgetId || '';
   menu.innerHTML = `
-    <input class="cat-search" type="text" placeholder="카테고리 검색 또는 생성…" />
+    <input class="cat-search" type="text" placeholder="검색하거나 직접 추가" />
     <div class="cat-options"></div>
-    <div class="cat-hint">Enter로 새 카테고리 생성</div>
+    <div class="cat-hint">원하는 항목이 없으면 입력 후 Enter</div>
   `;
   document.body.appendChild(menu);
 
@@ -192,7 +208,7 @@ export function mountCategorySelect(wrap, initialValue, onCommit, widgetId) {
 
   function positionMenu() {
     const rect = trigger.getBoundingClientRect();
-    const menuWidth = Math.max(rect.width, 168);
+    const menuWidth = Math.max(rect.width, 240);
     let left = rect.left;
     let top = rect.bottom + 4;
     if (left + menuWidth > window.innerWidth - 8) left = window.innerWidth - menuWidth - 8;

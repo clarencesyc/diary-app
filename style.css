@@ -485,8 +485,8 @@
 .cat-options {
   max-height: 140px;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 2px;
 }
 
@@ -508,11 +508,24 @@
 }
 
 .cat-option-chip {
-  display: inline-block;
+  display: inline-flex;
   padding: 2px 8px;
   border-radius: 6px;
   font-weight: 600;
   font-size: 0.68rem;
+}
+
+.cat-option .cat-option-chip {
+  width: 100%;
+  justify-content: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cat-option.cat-create,
+.cat-empty {
+  grid-column: 1 / -1;
 }
 
 .cat-create {
@@ -3458,7 +3471,8 @@ body::before {
   align-items: center;
   gap: 3px;
   color: #9a746a;
-  font-size: 0.6rem;
+  font-size: 0.57rem;
+  font-weight: 650;
   white-space: nowrap;
   cursor: pointer;
 }
