@@ -45,6 +45,7 @@ let bound = false;
 let dirty = false;
 let summaryCursor = new Date(); // month shown in summary card
 let travelSettings = {};
+let pendingExchangeRate = null;
 
 function diaryId() {
   return state.currentDiary?.id;
@@ -142,17 +143,90 @@ function fillTripSettingsForm() {
     '#trip-travelers': (travelSettings.travelers || []).join(', '),
   };
   Object.entries(values).forEach(([selector, value]) => { const el = $(selector); if (el) el.value = value; });
+  const rateInput = $('#trip-exchange-rate');
+  if (rateInput) rateInput.dataset.rateDate = travelSettings.exchangeRateDate || '';
+  const status = $('#trip-rate-status');
+  if (status) {
+    status.textContent = travelSettings.exchangeRateDate
+      ? `${travelSettings.exchangeRateDate} 기준 자동 환율`
+      : '통화를 선택하면 자동으로 조회합니다';
+  }
+}
+
+function exchangeRateReferenceDate() {
+  return String(currentWidget?.createdAt || state.currentDiary?.createdAt || todayISO()).slice(0, 10);
+}
+
+async function loadAutomaticExchangeRate(currency = $('#trip-local-currency')?.value || 'KRW') {
+  const input = $('#trip-exchange-rate');
+  const status = $('#trip-rate-status');
+  if (!input) return null;
+  if (currency === 'KRW') {
+    input.value = '1';
+    input.dataset.rateDate = exchangeRateReferenceDate();
+    if (status) status.textContent = '기준 통화와 동일합니다 (1 KRW = 1원)';
+    return { rate: 1, date: input.dataset.rateDate };
+  }
+  if (status) status.textContent = '생성 시점 환율을 불러오는 중…';
+  const referenceDate = exchangeRateReferenceDate();
+  const fetchRate = async (date = '') => {
+    const suffix = date ? `?date=${encodeURIComponent(date)}` : '';
+    const response = await fetch(`https://api.frankfurter.dev/v2/rate/${encodeURIComponent(currency)}/KRW${suffix}`);
+    if (!response.ok) throw new Error(`환율 조회 실패 (${response.status})`);
+    return response.json();
+  };
+  try {
+    let data;
+    try { data = await fetchRate(referenceDate); }
+    catch { data = await fetchRate(); }
+    const rate = Number(data.rate);
+    if (!Number.isFinite(rate) || rate <= 0) throw new Error('환율 응답이 올바르지 않습니다');
+    input.value = String(Number(rate.toFixed(4)));
+    input.dataset.rateDate = String(data.date || referenceDate);
+    if (status) status.textContent = `${input.dataset.rateDate} 기준 자동 환율 · 필요하면 직접 수정 가능`;
+    return { rate, date: input.dataset.rateDate };
+  } catch {
+    if (status) status.textContent = '자동 조회 실패 · 환율을 직접 입력해주세요';
+    return null;
+  }
+}
+
+async function syncTripBudgetIncome(settings) {
+  const budget = Math.max(0, Number(settings.tripBudget) || 0);
+  if (!budget || !currentWidget) return;
+  const existing = allItems.find((item) => item.entryRole === 'trip-budget')
+    || allItems.find((item) => itemKind(item) === 'income' && item.content === '여행 예산' && item.category === '예산');
+  const payload = {
+    date: settings.tripStart || existing?.date || todayISO(),
+    content: '여행 예산',
+    category: '예산',
+    price: budget,
+    kind: 'income',
+    originalAmount: budget,
+    currency: 'KRW',
+    exchangeRate: 1,
+    entryRole: 'trip-budget',
+  };
+  rememberCategory('예산');
+  const data = existing
+    ? await updateLedgerItem(diaryId(), currentWidget.id, existing.id, payload)
+    : await createLedgerItem(diaryId(), currentWidget.id, payload);
+  allItems = data.items || allItems;
 }
 
 async function persistTravelSettings() {
   if (!currentWidget) return;
+  if (pendingExchangeRate) await pendingExchangeRate;
+  const rateInput = $('#trip-exchange-rate');
   const next = {
     tripStart: $('#trip-start')?.value || '',
     tripEnd: $('#trip-end')?.value || '',
     tripBudget: Number($('#trip-budget')?.value) || 0,
     baseCurrency: 'KRW',
     localCurrency: $('#trip-local-currency')?.value || 'KRW',
-    exchangeRate: Number($('#trip-exchange-rate')?.value) || 1,
+    exchangeRate: Number(rateInput?.value) || 1,
+    exchangeRateDate: rateInput?.dataset.rateDate || exchangeRateReferenceDate(),
+    exchangeRateSource: 'Frankfurter',
     travelers: String($('#trip-travelers')?.value || '').split(',').map((name) => name.trim()).filter(Boolean),
   };
   if (next.tripStart && next.tripEnd && next.tripStart > next.tripEnd) [next.tripStart, next.tripEnd] = [next.tripEnd, next.tripStart];
@@ -166,6 +240,7 @@ async function persistTravelSettings() {
     currentWidget.travelSettings = travelSettings;
     saveEntries();
     for (const item of allItems) {
+      if (item.entryRole === 'trip-budget') continue;
       const originalAmount = Number(item.originalAmount ?? item.price) || 0;
       const updated = await updateLedgerItem(diaryId(), currentWidget.id, item.id, {
         currency: travelSettings.localCurrency || 'KRW',
@@ -175,6 +250,7 @@ async function persistTravelSettings() {
       });
       allItems = updated.items || allItems;
     }
+    await syncTripBudgetIncome(travelSettings);
     fillTripSettingsForm();
     setSaveStatus('saved');
     $('#trip-settings-panel')?.classList.add('hidden');
@@ -331,7 +407,7 @@ function renderMonthSummary() {
     budgetRemaining.classList.toggle('over', budget > 0 && expense > budget);
   }
   const budgetLabel = document.querySelector('.lms-budget-head > label');
-  if (budgetLabel) budgetLabel.textContent = travelSettings.tripBudget ? '총 여행 예산' : '이번 달 예산';
+  if (budgetLabel) budgetLabel.textContent = travelSettings.tripBudget ? '총 여행 예산(원)' : '이번 달 예산';
   renderTravelInsights(monthItems, expense, budget);
 
   const catsEl = $('#lms-cats');
@@ -378,23 +454,26 @@ function destroyRowCats() {
 
 async function persistRow(row, itemId) {
   if (!currentWidget) return;
+  const isBudgetEntry = row.dataset.entryRole === 'trip-budget';
+  const enteredPrice = Number(row.querySelector('[data-field="price"]').value) || 0;
   const payload = {
     date: row.querySelector('[data-field="date"]').value,
     content: row.querySelector('[data-field="content"]').value,
     category: row._catApi?.getValue() || '',
-    price: Number(row.querySelector('[data-field="price"]').value) || 0,
+    price: enteredPrice,
     kind: row.dataset.kind === 'income' ? 'income' : 'expense',
     paymentMethod: row.querySelector('[data-field="paymentMethod"]')?.value || '',
     memo: row.querySelector('[data-field="memo"]')?.value || '',
-    originalAmount: Number(row.querySelector('[data-field="originalAmount"]')?.value) || Number(row.querySelector('[data-field="price"]').value) || 0,
-    currency: travelSettings.localCurrency || 'KRW',
-    exchangeRate: Number(travelSettings.exchangeRate) || 1,
+    originalAmount: isBudgetEntry ? enteredPrice : (Number(row.querySelector('[data-field="originalAmount"]')?.value) || enteredPrice),
+    currency: isBudgetEntry ? 'KRW' : (travelSettings.localCurrency || 'KRW'),
+    exchangeRate: isBudgetEntry ? 1 : (Number(travelSettings.exchangeRate) || 1),
+    entryRole: row.dataset.entryRole || '',
     payer: row.querySelector('[data-field="payer"]')?.value || '',
     participants: [...row.querySelectorAll('[data-participant]:checked')].map((input) => input.value),
     locationName: row.querySelector('[data-field="locationName"]')?.value || '',
     receiptData: row.dataset.receiptData || '',
   };
-  if (row.querySelector('[data-field="originalAmount"]')) {
+  if (!isBudgetEntry && row.querySelector('[data-field="originalAmount"]')) {
     payload.price = Math.round(payload.originalAmount * payload.exchangeRate);
     row.querySelector('[data-field="price"]').value = payload.price;
   }
@@ -417,6 +496,7 @@ async function persistRow(row, itemId) {
 
 function buildEditableRow(item) {
   const kind = itemKind(item);
+  const isBudgetEntry = item.entryRole === 'trip-budget';
   const paymentOptions = ['<option value="">결제수단</option>']
     .concat(PAYMENT_METHODS.map((name) =>
       `<option value="${name}" ${item.paymentMethod === name ? 'selected' : ''}>${name}</option>`
@@ -425,26 +505,31 @@ function buildEditableRow(item) {
   const travelers = travelSettings.travelers || [];
   const payerOptions = ['<option value="">결제자 선택</option>', ...travelers.map((name) => `<option value="${escapeHTML(name)}" ${item.payer === name ? 'selected' : ''}>${escapeHTML(name)}</option>`)].join('');
   const participantOptions = travelers.map((name) => `<label class="trip-participant"><input type="checkbox" data-participant value="${escapeHTML(name)}" ${(item.participants || []).includes(name) ? 'checked' : ''}/><span>${escapeHTML(name)}</span></label>`).join('');
-  const convertedPriceLocked = Boolean(travelSettings.localCurrency);
+  const convertedPriceLocked = Boolean(travelSettings.localCurrency) || isBudgetEntry;
+  const rowCurrency = isBudgetEntry ? 'KRW' : (travelSettings.localCurrency || 'KRW');
+  const rowRate = isBudgetEntry ? 1 : (Number(travelSettings.exchangeRate) || 1);
+  const convertedWon = Math.round((Number(item.originalAmount ?? item.price) || 0) * rowRate);
+  const splitCount = (item.participants || []).filter(Boolean).length;
   const row = document.createElement('div');
   row.className = `ledger-detail-row is-editable kind-${kind}`;
   row.dataset.itemId = item.id;
   row.dataset.kind = kind;
+  row.dataset.entryRole = item.entryRole || '';
   row.dataset.receiptData = item.receiptData || '';
   row.innerHTML = `
     <button type="button" class="kind-toggle" data-field="kind" title="수입/지출 전환">${kind === 'income' ? '수입' : '지출'}</button>
     <input class="ledger-cell ledger-cell-date" type="date" data-field="date" value="${escapeHTML(item.date || '')}" />
     <input class="ledger-cell ledger-cell-content" type="text" data-field="content" placeholder="내용 입력" value="${escapeHTML(item.content || '')}" />
     <div class="ledger-cell-category" data-field="category-wrap"></div>
-    <input class="ledger-cell ledger-cell-price ${convertedPriceLocked ? 'is-converted' : ''}" type="number" data-field="price" min="0" step="1" placeholder="0" value="${item.price ?? 0}" ${convertedPriceLocked ? 'readonly title="여행 설정의 통화·환율과 현지 금액으로 자동 계산됩니다"' : ''} />
+    <input class="ledger-cell ledger-cell-price ${convertedPriceLocked ? 'is-converted' : ''}" type="number" data-field="price" min="0" step="1" placeholder="0" value="${item.price ?? 0}" ${convertedPriceLocked ? `readonly title="${isBudgetEntry ? '여행 설정의 총 여행 예산에서 수정할 수 있습니다' : '여행 설정의 통화·환율과 현지 금액으로 자동 계산됩니다'}"` : ''} />
     <button type="button" class="ledger-row-more" aria-expanded="false">상세 ▾</button>
     <button type="button" class="ledger-row-delete" title="삭제">×</button>
     <div class="ledger-row-advanced hidden">
       <label><span>결제수단</span><select class="ledger-cell ledger-payment-select" data-field="paymentMethod">${paymentOptions}</select></label>
       <label class="ledger-memo-wrap"><span>메모</span><input class="ledger-cell ledger-cell-memo" type="text" data-field="memo" placeholder="선택 사항" value="${escapeHTML(item.memo || '')}" /></label>
-      <label class="trip-amount-field"><span>현지 금액 · ${escapeHTML(travelSettings.localCurrency || 'KRW')}</span><input class="ledger-cell" type="number" min="0" step="0.01" data-field="originalAmount" value="${item.originalAmount ?? item.price ?? 0}" /><small>1 ${escapeHTML(travelSettings.localCurrency || 'KRW')} = ${Number(travelSettings.exchangeRate) || 1}원</small></label>
+      <label class="trip-amount-field"><span>${isBudgetEntry ? '예산 금액' : '현지 금액'} · ${escapeHTML(rowCurrency)}</span><input class="ledger-cell" type="number" min="0" step="0.01" data-field="originalAmount" value="${item.originalAmount ?? item.price ?? 0}" ${isBudgetEntry ? 'readonly' : ''} /><small>1 ${escapeHTML(rowCurrency)} = ${rowRate}원</small><strong data-converted-preview>원화 환산 약 ${formatWon(convertedWon)}</strong></label>
       <label><span>결제자</span><select class="ledger-cell" data-field="payer">${payerOptions}</select></label>
-      <div class="trip-participants"><span>함께 부담</span><div>${participantOptions || '<small>여행 설정에서 동행자를 추가하세요</small>'}</div></div>
+      <div class="trip-participants"><span>함께 부담</span><div>${participantOptions || '<small>여행 설정에서 동행자를 추가하세요</small>'}</div><strong data-split-preview>${splitCount ? `${splitCount}명 · 1인당 약 ${formatWon(Math.round(convertedWon / splitCount))}` : '인원을 선택하면 1/N 금액을 계산합니다'}</strong></div>
       <label><span>장소</span><input class="ledger-cell" type="text" data-field="locationName" placeholder="예: 시부야역" value="${escapeHTML(item.locationName || '')}" /></label>
       <label class="trip-receipt-field"><span>영수증</span><input type="file" accept="image/*" data-field="receiptFile" /><em>${item.receiptData ? '첨부됨' : '선택 사항'}</em></label>
     </div>
@@ -456,6 +541,19 @@ function buildEditableRow(item) {
   row.querySelectorAll('.ledger-cell, [data-participant]').forEach((input) => {
     input.addEventListener('change', () => persistRow(row, item.id));
   });
+  const updateCalculationPreview = () => {
+    const localAmount = Number(row.querySelector('[data-field="originalAmount"]')?.value) || 0;
+    const won = Math.round(localAmount * rowRate);
+    const selected = row.querySelectorAll('[data-participant]:checked').length;
+    const converted = row.querySelector('[data-converted-preview]');
+    const split = row.querySelector('[data-split-preview]');
+    if (converted) converted.textContent = `원화 환산 약 ${formatWon(won)}`;
+    if (split) split.textContent = selected
+      ? `${selected}명 · 1인당 약 ${formatWon(Math.round(won / selected))}`
+      : '인원을 선택하면 1/N 금액을 계산합니다';
+  };
+  row.querySelector('[data-field="originalAmount"]')?.addEventListener('input', updateCalculationPreview);
+  row.querySelectorAll('[data-participant]').forEach((input) => input.addEventListener('change', updateCalculationPreview));
   row.querySelector('[data-field="receiptFile"]')?.addEventListener('change', (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -719,6 +817,12 @@ export function bindLedgerDetailEvents() {
   $('#ledger-trip-settings')?.addEventListener('click', () => {
     fillTripSettingsForm();
     $('#trip-settings-panel')?.classList.toggle('hidden');
+    if (!travelSettings.exchangeRateDate && ($('#trip-local-currency')?.value || 'KRW') !== 'KRW') {
+      pendingExchangeRate = loadAutomaticExchangeRate().finally(() => { pendingExchangeRate = null; });
+    }
+  });
+  $('#trip-local-currency')?.addEventListener('change', (e) => {
+    pendingExchangeRate = loadAutomaticExchangeRate(e.target.value).finally(() => { pendingExchangeRate = null; });
   });
   $('#trip-settings-save')?.addEventListener('click', persistTravelSettings);
   $$('[data-kind-filter]').forEach((button) => {

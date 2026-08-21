@@ -111,6 +111,8 @@ module.exports = {
       baseCurrency: String(settings.baseCurrency || 'KRW'),
       localCurrency: String(settings.localCurrency || 'KRW'),
       exchangeRate: Math.max(0, Number(settings.exchangeRate) || 1),
+      exchangeRateDate: String(settings.exchangeRateDate || ''),
+      exchangeRateSource: String(settings.exchangeRateSource || ''),
       travelers: cleanTravelers,
     };
     writeSettings(data);
@@ -148,6 +150,7 @@ module.exports = {
       participants: Array.isArray(payload.participants) ? payload.participants.map(String) : [],
       locationName: String(payload.locationName || '').trim(),
       receiptData: String(payload.receiptData || ''),
+      entryRole: String(payload.entryRole || ''),
       recurringSourceId: payload.recurringSourceId ? String(payload.recurringSourceId) : null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -192,6 +195,7 @@ module.exports = {
         : (prev.participants || []),
       locationName: payload.locationName !== undefined ? String(payload.locationName).trim() : (prev.locationName || ''),
       receiptData: payload.receiptData !== undefined ? String(payload.receiptData || '') : (prev.receiptData || ''),
+      entryRole: payload.entryRole !== undefined ? String(payload.entryRole || '') : (prev.entryRole || ''),
       recurringSourceId:
         payload.recurringSourceId !== undefined
           ? (payload.recurringSourceId ? String(payload.recurringSourceId) : null)

@@ -327,9 +327,9 @@
         <section class="trip-settings-panel hidden" id="trip-settings-panel">
           <div class="trip-setting-field"><label for="trip-start">출발일</label><input type="date" id="trip-start" /></div>
           <div class="trip-setting-field"><label for="trip-end">도착일</label><input type="date" id="trip-end" /></div>
-          <div class="trip-setting-field"><label for="trip-budget">총 여행 예산</label><input type="number" id="trip-budget" min="0" step="10000" /></div>
-          <div class="trip-setting-field"><label for="trip-local-currency">현지 통화</label><select id="trip-local-currency"><option>KRW</option><option>JPY</option><option>CNY</option><option>USD</option><option>EUR</option><option>THB</option><option>VND</option><option>TWD</option></select></div>
-          <div class="trip-setting-field"><label for="trip-exchange-rate">1 현지통화당 원화</label><input type="number" id="trip-exchange-rate" min="0" step="0.0001" value="1" /></div>
+          <div class="trip-setting-field"><label for="trip-budget">총 여행 예산(원)</label><input type="number" id="trip-budget" min="0" step="10000" /></div>
+          <div class="trip-setting-field"><label for="trip-local-currency">현지 통화</label><select id="trip-local-currency"><option value="KRW">KRW(원화, 대한민국)</option><option value="JPY">JPY(엔화, 일본)</option><option value="CNY">CNY(위안화, 중국)</option><option value="USD">USD(달러, 미국)</option><option value="EUR">EUR(유로, 유럽)</option><option value="THB">THB(바트, 태국)</option><option value="VND">VND(동, 베트남)</option><option value="TWD">TWD(신 타이완 달러, 대만)</option></select></div>
+          <div class="trip-setting-field trip-rate-field"><label for="trip-exchange-rate">1 현지 통화당 원화</label><input type="number" id="trip-exchange-rate" min="0" step="0.0001" value="1" /><small id="trip-rate-status">통화를 선택하면 자동으로 조회합니다</small></div>
           <div class="trip-setting-field travelers"><label for="trip-travelers">동행자</label><input type="text" id="trip-travelers" placeholder="쉼표로 구분: 나, 친구A, 친구B" /></div>
           <button type="button" class="budget-tool-btn trip-settings-save" id="trip-settings-save">설정 저장</button>
         </section>

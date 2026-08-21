@@ -36,6 +36,7 @@ export function placeWidget(row, col, wCols, wRows, imageData) {
   const widgetData = {
     id: widgetId,
     type,
+    createdAt: state.movingWidget?.createdAt || new Date().toISOString(),
     row: Number(row),
     col: Number(col),
     cols: Number(wCols),

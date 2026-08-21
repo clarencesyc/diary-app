@@ -3246,6 +3246,7 @@ body::before {
 #ledger-page .trip-setting-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 #ledger-page .trip-setting-field.travelers { grid-column: span 2; }
 #ledger-page .trip-setting-field label { color: #916f66; font-size: .59rem; font-weight: 700; }
+#ledger-page .trip-rate-field small { color: #a98a82; font-size: .52rem; line-height: 1.35; }
 #ledger-page .trip-setting-field input,
 #ledger-page .trip-setting-field select {
   min-width: 0; width: 100%; padding: 8px; border: 1px solid rgba(148,99,87,.11); border-radius: 9px;
@@ -3631,6 +3632,17 @@ body::before {
   font-size: .52rem;
   font-weight: 550;
 }
+
+#ledger-page .trip-amount-field strong,
+#ledger-page .trip-participants > strong {
+  display: block;
+  margin-top: 3px;
+  color: #a6537c;
+  font-size: .56rem;
+  font-weight: 750;
+}
+
+#ledger-page .trip-participants > strong { color: #4f927e; }
 
 #ledger-page .ledger-row-advanced :disabled {
   opacity: 0.42;
